@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { Header } from './components/Header';
 import { Background } from './components/Background';
@@ -25,7 +24,7 @@ const App: React.FC = () => {
             setFixtures(data);
         } catch (err) {
             if (err instanceof Error && err.message.includes("Football Data API key is not configured")) {
-                setError("Welcome! To get started, please add your Football Data API key to the `constants.ts` file.");
+                setError("Welcome! To get started, please add your Football Data API key as an environment variable named FOOTBALL_DATA_API_KEY in your project settings.");
             } else {
                 setError('Failed to fetch match data. The API may be unavailable or your request limit has been reached.');
             }

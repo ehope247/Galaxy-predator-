@@ -1,11 +1,10 @@
-
-import { FOOTBALL_DATA_API_URL, FOOTBALL_DATA_API_KEY } from '../constants';
+import { FOOTBALL_DATA_API_URL } from '../constants';
 import type { FootballDataResponse, Match } from '../types';
 
 export const getFixtures = async (leagueCode: string): Promise<Match[]> => {
-    const apiKey = FOOTBALL_DATA_API_KEY;
-    if (!apiKey || apiKey === 'YOUR_FOOTBALL_DATA_API_KEY_HERE') {
-        throw new Error("Football Data API key is not configured. Please add your key to the constants.ts file.");
+    const apiKey = process.env.FOOTBALL_DATA_API_KEY;
+    if (!apiKey) {
+        throw new Error("Football Data API key is not configured. Please set the FOOTBALL_DATA_API_KEY environment variable in your project settings.");
     }
 
     const headers = {

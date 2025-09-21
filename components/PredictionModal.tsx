@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import ReactDOM from 'react-dom';
 import type { Match, TavilySearchResult, GeminiPrediction } from '../types';
@@ -58,7 +57,7 @@ const PredictionContent: React.FC<{ match: Match }> = ({ match }) => {
             let errorMessage = 'Could not generate prediction. The service may be busy, please try again later.';
             if (err instanceof Error) {
                 if (err.message.includes("Tavily API key is not configured")) {
-                    errorMessage = "Please add your Tavily API key to the `constants.ts` file to fetch the latest news.";
+                    errorMessage = "Please add your Tavily API key as an environment variable named TAVILY_API_KEY in your project settings to fetch the latest news.";
                 } else if (err.message.includes("Gemini API key")) {
                     errorMessage = "The AI Prediction service is not configured. Please ensure the `API_KEY` environment variable is set in your project settings.";
                 } else if (err.message.includes("Failed to get a valid prediction")) {

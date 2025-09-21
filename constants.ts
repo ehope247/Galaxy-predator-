@@ -1,20 +1,10 @@
-
 import type { League } from './types';
 
-// --- IMPORTANT SETUP REQUIRED ---
-// Welcome! To get the app running, you need to add your API keys to this file.
-// This is the main configuration file for the application.
-//
-// HOW TO ADD YOUR KEYS:
-// 1. You are looking at the correct file: `constants.ts`.
-// 2. Replace the placeholder text (e.g., 'YOUR_FOOTBALL_DATA_API_KEY_HERE') with your actual API keys.
-// 3. Save this file. The app will automatically use your new keys.
-//
-// NOTE: Your Google Gemini API key is handled securely and automatically. You do not need to add it here.
-// It should be configured as an environment variable named `API_KEY` in your project's settings.
-
-export const FOOTBALL_DATA_API_KEY = 'YOUR_FOOTBALL_DATA_API_KEY_HERE';
-export const TAVILY_API_KEY = 'YOUR_TAVILY_API_KEY_HERE';
+// The application is now configured to read all API keys from environment variables.
+// This is a security best practice. Please configure the following in your deployment environment (e.g., Vercel):
+// - API_KEY: Your Google Gemini API Key
+// - FOOTBALL_DATA_API_KEY: Your key from football-data.org
+// - TAVILY_API_KEY: Your key from tavily.com
 
 export const FOOTBALL_DATA_API_URL = 'https://api.football-data.org/v4';
 export const TAVILY_API_URL = 'https://api.tavily.com/search';
