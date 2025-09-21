@@ -1,8 +1,18 @@
-
 import { GoogleGenAI, Type } from "@google/genai";
+import { GEMINI_API_KEY } from '../constants';
 import type { Match, TavilySearchResult, GeminiPrediction } from '../types';
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+let ai: GoogleGenAI | null = null;
+
+const getGenAIClient = (): GoogleGenAI => {
+    if (!GEMINI_API_KEY || GEMINI_API_KEY === 'YOUR_GEMINI_API_KEY_HERE') {
+        throw new Error("Gemini API key is not configured. Please add your key to the constants.ts file.");
+    }
+    if (!ai) {
+        ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
+    }
+    return ai;
+};
 
 const predictionSchema = {
     type: Type.OBJECT,
@@ -60,7 +70,8 @@ export const generatePrediction = async (
     `;
 
     try {
-        const response = await ai.models.generateContent({
+        const genAI = getGenAIClient();
+        const response = await genAI.models.generateContent({
             model: 'gemini-2.5-flash',
             contents: prompt,
             config: {
@@ -74,6 +85,13 @@ export const generatePrediction = async (
         return prediction;
     } catch (error) {
         console.error("Error generating prediction from Gemini:", error);
+        if (error instanceof Error && error.message.includes("API key not valid")) {
+             throw new Error("Failed to get a valid prediction. Your Gemini API key seems to be invalid. Please check it in constants.ts.");
+        }
+        // Forward the specific configuration error message
+        if (error instanceof Error && error.message.includes("Gemini API key is not configured")) {
+            throw error;
+        }
         throw new Error("Failed to get a valid prediction from the AI model.");
     }
 };

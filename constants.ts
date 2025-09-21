@@ -2,9 +2,11 @@ import type { League } from './types';
 
 // --- IMPORTANT ---
 // To run the application, replace the placeholder values below with your actual API keys.
-// For security, do not commit your secret keys to a public repository.
+// For security in a real production app, do not commit your secret keys to a public repository.
+// These keys should ideally be handled by a secure backend service, not exposed in the frontend code.
 export const FOOTBALL_DATA_API_KEY = 'YOUR_FOOTBALL_DATA_API_KEY_HERE';
 export const TAVILY_API_KEY = 'YOUR_TAVILY_API_KEY_HERE';
+export const GEMINI_API_KEY = 'YOUR_GEMINI_API_KEY_HERE';
 
 export const FOOTBALL_DATA_API_URL = 'https://api.football-data.org/v4';
 export const TAVILY_API_URL = 'https://api.tavily.com/search';
