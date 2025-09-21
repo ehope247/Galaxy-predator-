@@ -7,11 +7,11 @@ const PROXY_URL = 'https://corsproxy.io/?';
 export const getTeamNews = async (teamName: string): Promise<TavilySearchResult[]> => {
     const query = `latest news and injury updates for ${teamName} football club`;
     
-    const response = await fetch(`${PROXY_URL}${encodeURIComponent(TAVILY_API_URL)}`, {
+    const response = await fetch(`${PROXY_URL}${encodeURIComponent(https://api.tavily.com/search)}`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${TAVILY_API_KEY}`,
+            'Authorization': `Bearer ${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}`,
         },
         body: JSON.stringify({
             query: query,
