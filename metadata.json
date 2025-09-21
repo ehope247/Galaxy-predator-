@@ -1,0 +1,5 @@
+{
+  "name": "AI Football Predictor",
+  "description": "A modern Football Prediction Web App that integrates multiple APIs for accurate predictions and live updates. It features a tech-inspired design with smooth animations and a clean UI to display upcoming fixtures, predictions, odds, and real-time team news.",
+  "requestFramePermissions": []
+}
