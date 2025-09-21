@@ -24,7 +24,11 @@ const App: React.FC = () => {
             const data = await getFixtures(leagueCode);
             setFixtures(data);
         } catch (err) {
-            setError('Failed to fetch match data. The API may be unavailable or your request limit has been reached.');
+            if (err instanceof Error && err.message.includes("Football Data API key is not configured")) {
+                setError("Welcome! To get started, please add your Football Data API key to the `constants.ts` file.");
+            } else {
+                setError('Failed to fetch match data. The API may be unavailable or your request limit has been reached.');
+            }
             console.error(err);
         } finally {
             setIsLoading(false);
@@ -54,8 +58,8 @@ const App: React.FC = () => {
                     {isLoading && <div className="mt-20 flex justify-center"><Loader /></div>}
 
                     {error && (
-                        <div className="mt-12 text-center text-red-400 bg-red-900/20 p-4 rounded-lg">
-                            <p className="font-bold text-lg">An Error Occurred</p>
+                        <div className="mt-12 text-center text-red-400 bg-red-900/20 p-4 rounded-lg max-w-2xl mx-auto">
+                            <p className="font-bold text-lg">Action Required</p>
                             <p>{error}</p>
                         </div>
                     )}

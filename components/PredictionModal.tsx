@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 import ReactDOM from 'react-dom';
 import type { Match, TavilySearchResult, GeminiPrediction } from '../types';
@@ -39,9 +40,17 @@ const PredictionContent: React.FC<{ match: Match }> = ({ match }) => {
             setStatus({ step: 'complete', error: null });
         } catch (err) {
             console.error(err);
+            let errorMessage = 'Could not generate prediction. The service may be busy, please try again later.';
+            if (err instanceof Error) {
+                if (err.message.includes("Tavily API key is not configured")) {
+                    errorMessage = "Please add your Tavily API key to the `constants.ts` file to fetch the latest news.";
+                } else if (err.message.includes("Failed to get a valid prediction")) {
+                    errorMessage = "Prediction failed. Ensure your Google Gemini API key is correctly configured as an environment variable named API_KEY.";
+                }
+            }
             setStatus({ 
                 step: 'complete',
-                error: 'Could not generate prediction. The service may be busy, please try again later.' 
+                error: errorMessage 
             });
         }
     }, [match]);

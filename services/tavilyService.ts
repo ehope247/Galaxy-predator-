@@ -2,9 +2,9 @@ import { TAVILY_API_URL, TAVILY_API_KEY } from '../constants';
 import type { TavilyResponse, TavilySearchResult } from '../types';
 
 export const getTeamNews = async (teamName: string): Promise<TavilySearchResult[]> => {
-    const apiKey = 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;
-    if (!apiKey) {
-        throw new Error("Tavily API key is not configured in constants.ts.");
+    const apiKey = TAVILY_API_KEY;
+    if (!apiKey || apiKey === 'YOUR_TAVILY_API_KEY_HERE') {
+        throw new Error("Tavily API key is not configured. Please add your key to the constants.ts file.");
     }
 
     const query = `latest news and injury updates for ${teamName} football club`;
