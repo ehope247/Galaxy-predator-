@@ -1,59 +1,20 @@
-// This serverless function securely calls the Gemini API.
-import type { Match, TavilySearchResult } from '../types';
+// Vercel will automatically turn this file into a serverless function.
+// This code runs on the server, not in the browser.
+
+import { GoogleGenAI, Type } from "@google/genai";
+import type { Match, TavilySearchResult, GeminiPrediction } from '../types';
 
 export const config = {
   runtime: 'edge',
 };
 
-// This schema is the JSON representation of the one previously defined using the SDK.
-const predictionSchema = {
-    type: "object",
-    properties: {
-        predictedScore: {
-            type: "object",
-            properties: {
-                home: { type: "integer" },
-                away: { type: "integer" }
-            },
-            required: ["home", "away"]
-        },
-        reasoning: {
-            type: "string",
-            description: "A concise analysis (2-3 sentences) explaining the prediction, considering team form, key matchups, and recent news."
-        },
-        keyPlayer: {
-            type: "string",
-            description: "The name of one player who is likely to have a significant impact on the match result."
-        }
-    },
-    required: ["predictedScore", "reasoning", "keyPlayer"]
+// Helper function to format news content for the prompt
+const formatNews = (teamName: string, news: TavilySearchResult[]): string => {
+    if (!news || news.length === 0) {
+        return `No recent news found for ${teamName}.`;
+    }
+    return `Recent news for ${teamName}:\n` + news.map(item => `- ${item.title}: ${item.content}`).join('\n');
 };
-
-const formatNews = (news: TavilySearchResult[]): string => {
-    if (!news || news.length === 0) return "No recent news available.";
-    return news.map(item => `- ${item.title}: ${item.content}`).join('\\n');
-};
-
-const generatePrompt = (match: Match, homeNews: TavilySearchResult[], awayNews: TavilySearchResult[]): string => `
-    Analyze the upcoming football match and provide a prediction.
-
-    **Match Details:**
-    - Competition: ${match.competition.name}
-    - Home Team: ${match.homeTeam.name}
-    - Away Team: ${match.awayTeam.name}
-    - Match Date: ${new Date(match.utcDate).toUTCString()}
-
-    **Recent News & Insights:**
-
-    **${match.homeTeam.name} News:**
-    ${formatNews(homeNews)}
-
-    **${match.awayTeam.name} News:**
-    ${formatNews(awayNews)}
-
-    Based on all this information, provide your prediction in the required JSON format.
-    Be a confident and expert football analyst. Your reasoning should be sharp and to the point.
-`;
 
 export default async function handler(req: Request) {
     if (req.method === 'OPTIONS') {
@@ -67,58 +28,133 @@ export default async function handler(req: Request) {
         });
     }
 
-    const apiKey = process.env.API_KEY;
-    if (!apiKey) {
-        return new Response(JSON.stringify({ error: "Gemini API key is not configured." }), {
+    if (req.method !== 'POST') {
+        return new Response(JSON.stringify({ error: 'Method not allowed' }), {
+            status: 405,
+            headers: { 'Content-Type': 'application/json' },
+        });
+    }
+    
+    // The API key is read from environment variables on the server.
+    if (!process.env.API_KEY) {
+        return new Response(JSON.stringify({ error: "Gemini API key is not configured. Please set the API_KEY environment variable." }), {
             status: 500,
-            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+            headers: { 'Content-Type': 'application/json' },
         });
     }
 
     try {
         const { match, homeNews, awayNews } = await req.json() as { match: Match; homeNews: TavilySearchResult[]; awayNews: TavilySearchResult[] };
         
-        const prompt = generatePrompt(match, homeNews, awayNews);
-        const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+        // FIX: Initialize GoogleGenAI with a named apiKey parameter
+        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
         
-        const payload = {
-            contents: [{ parts: [{ text: prompt }] }],
-            generationConfig: {
-                responseMimeType: "application/json",
-                responseSchema: predictionSchema,
-            }
+        const homeTeam = match.homeTeam.name;
+        const awayTeam = match.awayTeam.name;
+
+        const systemInstruction = `You are a world-class football analyst. Your task is to predict the outcome of an upcoming football match.
+Analyze the provided data which includes match details, team information, and recent news for both teams (including potential injuries, form, and morale).
+Based on your analysis, provide a detailed prediction in JSON format.
+Your prediction should include the predicted winner, a detailed reasoning for your prediction, a confidence score, the predicted final score, and a list of key players for each team.
+The reasoning should be objective, data-driven, and cover aspects like team form, head-to-head record (if known), player availability, and tactical considerations.
+Do not use markdown in your reasoning. Use newline characters for paragraph breaks.`;
+        
+        const prompt = `
+Please predict the outcome of the following football match:
+- Competition: ${match.competition.name}
+- Match: ${homeTeam} vs ${awayTeam}
+- Date: ${match.utcDate}
+
+Here is the latest information available for each team:
+
+${formatNews(homeTeam, homeNews)}
+
+${formatNews(awayTeam, awayNews)}
+
+Based on all this information, provide your detailed prediction.
+`;
+
+        const responseSchema = {
+            type: Type.OBJECT,
+            properties: {
+                predictedWinner: { 
+                    type: Type.STRING,
+                    description: "The predicted winning team. Can be 'HOME_TEAM', 'AWAY_TEAM', or 'DRAW'.",
+                },
+                reasoning: { 
+                    type: Type.STRING, 
+                    description: "A detailed, data-driven analysis explaining the prediction. Should cover team form, key players, injuries, and tactical analysis. Use newlines for paragraphs."
+                },
+                confidence: { 
+                    type: Type.NUMBER, 
+                    description: "A score from 0 to 100 representing the confidence in the prediction."
+                },
+                homeScore: { 
+                    type: Type.INTEGER, 
+                    description: "The predicted number of goals for the home team."
+                },
+                awayScore: { 
+                    type: Type.INTEGER, 
+                    description: "The predicted number of goals for the away team."
+                },
+                keyPlayers: {
+                    type: Type.OBJECT,
+                    properties: {
+                        home: { 
+                            type: Type.ARRAY,
+                            items: { type: Type.STRING },
+                            description: "A list of 2-3 key players for the home team who could influence the match."
+                        },
+                        away: { 
+                            type: Type.ARRAY,
+                            items: { type: Type.STRING },
+                            description: "A list of 2-3 key players for the away team who could influence the match."
+                        }
+                    },
+                    required: ["home", "away"]
+                }
+            },
+            required: ["predictedWinner", "reasoning", "confidence", "homeScore", "awayScore", "keyPlayers"]
         };
 
-        const response = await fetch(geminiUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
+        const response = await ai.models.generateContent({
+            // FIX: Use gemini-2.5-flash model as per guidelines
+            model: "gemini-2.5-flash",
+            contents: prompt,
+            config: {
+                systemInstruction: systemInstruction,
+                responseMimeType: "application/json",
+                responseSchema: responseSchema,
+                temperature: 0.5,
+            }
         });
-
-        if (!response.ok) {
-            const errorData = await response.json();
-            console.error("Gemini API Error:", errorData);
-            const errorMessage = errorData?.error?.message || "An unknown error occurred with the AI service.";
-            return new Response(JSON.stringify({ error: "Failed to get a valid prediction from the AI model.", details: errorMessage }), {
-                status: 500,
-                headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
-            });
+        
+        // FIX: Access the text property directly for the response as per guidelines
+        const jsonText = response.text;
+        
+        if (!jsonText) {
+             throw new Error("The AI model returned an empty response.");
         }
-        
-        const data = await response.json();
-        const jsonText = data.candidates[0].content.parts[0].text;
-        
-        // We send back the raw JSON string which the client will parse.
-        return new Response(jsonText, {
+
+        const prediction: GeminiPrediction = JSON.parse(jsonText);
+
+        return new Response(JSON.stringify(prediction), {
             status: 200,
-            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+            headers: { 
+                'Content-Type': 'application/json',
+                'Access-Control-Allow-Origin': '*',
+            },
         });
 
     } catch (error) {
-        const message = error instanceof Error ? error.message : 'An unknown error occurred';
-        return new Response(JSON.stringify({ error: 'Internal server error', details: message }), {
+        console.error("Error in Gemini predict handler:", error);
+        const message = error instanceof Error ? error.message : "An unknown error occurred on the server.";
+        return new Response(JSON.stringify({ error: "Failed to generate AI prediction.", details: message }), {
             status: 500,
-            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+            headers: { 
+                'Content-Type': 'application/json',
+                'Access-Control-Allow-Origin': '*',
+             },
         });
     }
 }

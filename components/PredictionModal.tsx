@@ -1,188 +1,171 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import ReactDOM from 'react-dom';
+import React, { useState, useEffect } from 'react';
 import type { Match, TavilySearchResult, GeminiPrediction } from '../types';
 import { getTeamNews } from '../services/tavilyService';
 import { generatePrediction } from '../services/geminiService';
 import { Loader } from './Loader';
-import { CloseIcon, NewsIcon, BrainIcon, StarIcon } from './IconComponents';
+import { XIcon } from './IconComponents';
 
 interface PredictionModalProps {
     match: Match;
     onClose: () => void;
 }
 
-/**
- * PredictionContent is the core component that fetches and displays the AI prediction and related news.
- * It manages its own state for loading, data, and errors.
- */
-const PredictionContent: React.FC<{ match: Match }> = ({ match }) => {
-    // State for storing fetched news articles
-    const [homeNews, setHomeNews] = useState<TavilySearchResult[]>([]);
-    const [awayNews, setAwayNews] = useState<TavilySearchResult[]>([]);
-    // State for the final AI prediction result
-    const [prediction, setPrediction] = useState<GeminiPrediction | null>(null);
-    // State to track the loading process (fetching news, then generating prediction) and any errors.
-    const [status, setStatus] = useState<{ step: 'news' | 'prediction' | 'complete'; error: string | null }>({
-        step: 'news',
-        error: null,
-    });
-
-    /**
-     * This function orchestrates the data fetching process.
-     * It runs once when the component is first rendered.
-     */
-    const fetchDetails = useCallback(async () => {
-        // Reset state and start the news fetching step
-        setStatus({ step: 'news', error: null });
-        try {
-            // Step 1: Fetch news for both teams in parallel to save time.
-            const [homeNewsData, awayNewsData] = await Promise.all([
-                getTeamNews(match.homeTeam.name),
-                getTeamNews(match.awayTeam.name)
-            ]);
-            // We only need the top 3 articles for the prediction prompt
-            setHomeNews(homeNewsData.slice(0, 3));
-            setAwayNews(awayNewsData.slice(0, 3));
-
-            // Step 2: Once news is fetched, move to the prediction step.
-            setStatus(s => ({ ...s, step: 'prediction' }));
-            const predictionData = await generatePrediction(match, homeNewsData, awayNewsData);
-            setPrediction(predictionData);
-
-            // Final step: All data is loaded, mark as complete.
-            setStatus({ step: 'complete', error: null });
-        } catch (err) {
-            console.error(err);
-            // Handle and display specific, helpful error messages to the user.
-            let errorMessage = 'Could not generate prediction. The service may be busy, please try again later.';
-            if (err instanceof Error) {
-                if (err.message.includes("Tavily API key is not configured")) {
-                    errorMessage = "Please add your Tavily API key as an environment variable named TAVILY_API_KEY in your project settings to fetch the latest news.";
-                } else if (err.message.includes("Gemini API key")) {
-                    errorMessage = "The AI Prediction service is not configured. Please ensure the `API_KEY` environment variable is set in your project settings.";
-                } else if (err.message.includes("Failed to get a valid prediction")) {
-                    errorMessage = "The AI model failed to generate a prediction. This might be due to a temporary service issue.";
-                }
-            }
-            setStatus({ 
-                step: 'complete',
-                error: errorMessage 
-            });
-        }
-    }, [match]);
-
-    // The useEffect hook calls `fetchDetails` when the modal is opened.
-    useEffect(() => {
-        fetchDetails();
-    }, [fetchDetails]);
-    
-    // --- RENDER LOGIC ---
-
-    // Render an error message if something went wrong
-    if (status.error) {
-        return <div className="text-center p-8 text-red-400">{status.error}</div>;
-    }
-
-    // Render a loading indicator while fetching data
-    if (status.step !== 'complete') {
-        const loadingMessages = {
-            news: 'Gathering latest team news & stats...',
-            prediction: 'Consulting with our AI expert for the prediction...'
-        };
-        return (
-            <div className="flex flex-col items-center justify-center p-8 space-y-4 min-h-[300px]">
-                <Loader />
-                <p className="text-brand-text-muted text-center animate-fade-in">{loadingMessages[status.step]}</p>
-            </div>
-        );
-    }
-
-    // Render the final prediction view when data is successfully loaded
-    return (
-        <div className="animate-fade-in">
-            <div className="p-6 bg-brand-surface/50 rounded-t-2xl">
-                <div className="flex items-center justify-between space-x-4">
-                    <div className="flex flex-col items-center w-1/3 text-center">
-                        <img src={match.homeTeam.crest} alt={match.homeTeam.name} className="w-16 h-16 object-contain mb-2" />
-                        <span className="font-bold text-lg">{match.homeTeam.name}</span>
-                    </div>
-                    <div className="flex flex-col items-center">
-                        <span className="text-4xl md:text-5xl font-black text-white">{prediction?.predictedScore.home} - {prediction?.predictedScore.away}</span>
-                        <span className="text-sm text-brand-text-muted mt-1">AI Predicted Score</span>
-                    </div>
-                    <div className="flex flex-col items-center w-1/3 text-center">
-                        <img src={match.awayTeam.crest} alt={match.awayTeam.name} className="w-16 h-16 object-contain mb-2" />
-                        <span className="font-bold text-lg">{match.awayTeam.name}</span>
-                    </div>
-                </div>
-            </div>
-
-            <div className="p-6 space-y-6">
-                <div className="bg-black/20 p-4 rounded-lg">
-                    <h3 className="font-bold text-lg flex items-center mb-2 text-brand-primary"><BrainIcon className="w-5 h-5 mr-2" /> AI Analysis</h3>
-                    <p className="text-brand-text-muted text-sm">{prediction?.reasoning}</p>
-                </div>
-                <div className="bg-black/20 p-4 rounded-lg">
-                    <h3 className="font-bold text-lg flex items-center mb-2 text-brand-primary"><StarIcon className="w-5 h-5 mr-2" /> Key Player to Watch</h3>
-                    <p className="text-brand-text-muted text-sm">{prediction?.keyPlayer}</p>
-                </div>
-                <div>
-                    <h3 className="font-bold text-lg flex items-center mb-3 text-brand-primary"><NewsIcon className="w-5 h-5 mr-2" /> Latest News & Insights</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <NewsSection teamName={match.homeTeam.name} news={homeNews} />
-                        <NewsSection teamName={match.awayTeam.name} news={awayNews} />
-                    </div>
-                </div>
-            </div>
-        </div>
-    );
-};
-
-const NewsSection: React.FC<{teamName: string; news: TavilySearchResult[]}> = ({ teamName, news }) => (
-    <div className="space-y-3">
-        <h4 className="font-semibold text-white">{teamName}</h4>
-        {news.length > 0 ? (
-            news.map((item, index) => (
-                <a href={item.url} target="_blank" rel="noopener noreferrer" key={index} className="block bg-black/20 p-3 rounded-md hover:bg-white/10 transition-colors">
-                    <p className="text-sm font-semibold truncate text-brand-text">{item.title}</p>
-                    <p className="text-xs text-brand-text-muted mt-1 line-clamp-2">{item.content}</p>
-                </a>
-            ))
-        ) : (
-            <p className="text-sm text-brand-text-muted p-3 bg-black/20 rounded-md">No recent news found.</p>
-        )}
-    </div>
+const NewsItem: React.FC<{ item: TavilySearchResult }> = ({ item }) => (
+    <a href={item.url} target="_blank" rel="noopener noreferrer" className="block p-3 bg-white/5 rounded-lg hover:bg-white/10 transition-colors">
+        <p className="font-semibold text-brand-primary text-sm truncate">{item.title}</p>
+        <p className="text-xs text-brand-text-muted mt-1 line-clamp-2">{item.content}</p>
+    </a>
 );
 
 export const PredictionModal: React.FC<PredictionModalProps> = ({ match, onClose }) => {
-    const modalRoot = document.getElementById('modal-root');
-    if (!modalRoot) return null;
+    const [homeNews, setHomeNews] = useState<TavilySearchResult[]>([]);
+    const [awayNews, setAwayNews] = useState<TavilySearchResult[]>([]);
+    const [prediction, setPrediction] = useState<GeminiPrediction | null>(null);
+    const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    const [loadingMessage, setLoadingMessage] = useState("Analyzing match data...");
 
     useEffect(() => {
-        const handleEsc = (event: KeyboardEvent) => {
-            if (event.key === 'Escape') {
-                onClose();
+        const fetchAllData = async () => {
+            setIsLoading(true);
+            setError(null);
+
+            try {
+                // Step 1: Fetch news
+                setLoadingMessage(`Gathering latest news for ${match.homeTeam.name}...`);
+                const homeNewsData = await getTeamNews(match.homeTeam.name);
+                setHomeNews(homeNewsData);
+
+                setLoadingMessage(`Gathering latest news for ${match.awayTeam.name}...`);
+                const awayNewsData = await getTeamNews(match.awayTeam.name);
+                setAwayNews(awayNewsData);
+
+                // Step 2: Generate prediction
+                setLoadingMessage("Consulting with the AI... This may take a moment.");
+                const predictionData = await generatePrediction(match, homeNewsData, awayNewsData);
+                setPrediction(predictionData);
+
+            } catch (err) {
+                const message = err instanceof Error ? err.message : "An unknown error occurred.";
+                setError(`Failed to generate prediction. ${message}`);
+                console.error(err);
+            } finally {
+                setIsLoading(false);
             }
         };
-        window.addEventListener('keydown', handleEsc);
-        return () => window.removeEventListener('keydown', handleEsc);
-    }, [onClose]);
 
-    return ReactDOM.createPortal(
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-md flex items-center justify-center z-50 p-4 animate-fade-in" onClick={onClose}>
-            <div
-                className="bg-brand-surface border border-white/10 rounded-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto animate-slide-up scrollbar-hide"
+        fetchAllData();
+    }, [match]);
+
+    const getWinnerStyling = (team: 'HOME_TEAM' | 'AWAY_TEAM' | 'DRAW' | undefined) => {
+        if (!prediction || !team) return '';
+        if (prediction.predictedWinner === team) {
+            return 'border-brand-primary/80 bg-brand-primary/10 shadow-lg shadow-brand-primary/10';
+        }
+        if (prediction.predictedWinner === 'DRAW' && team !== 'DRAW') {
+             return 'border-white/20 bg-white/5';
+        }
+        return 'border-transparent opacity-50';
+    }
+
+    return (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 animate-fade-in" onClick={onClose}>
+            <div 
+                className="bg-brand-surface border border-white/10 rounded-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto scrollbar-thin scrollbar-thumb-brand-primary/50 scrollbar-track-transparent p-6 md:p-8 relative transform animate-slide-up"
                 onClick={(e) => e.stopPropagation()}
             >
-                <div className="sticky top-0 bg-brand-surface/80 backdrop-blur-lg p-4 flex justify-between items-center z-10 border-b border-white/10">
-                    <h2 className="text-xl font-bold">{match.competition.name}</h2>
-                    <button onClick={onClose} className="p-2 rounded-full hover:bg-white/10 transition-colors">
-                        <CloseIcon className="w-6 h-6" />
-                    </button>
+                <button onClick={onClose} className="absolute top-4 right-4 text-brand-text-muted hover:text-white transition-colors">
+                    <XIcon className="w-6 h-6" />
+                </button>
+                
+                <div className="flex items-center justify-center space-x-4 md:space-x-8 mb-6">
+                    <div className="flex flex-col items-center text-center">
+                        <img src={match.homeTeam.crest} alt={match.homeTeam.name} className="w-20 h-20 md:w-24 md:h-24 object-contain mb-2"/>
+                        <p className="font-bold text-lg md:text-xl">{match.homeTeam.name}</p>
+                    </div>
+                    <div className="font-black text-3xl md:text-5xl text-brand-text-muted">VS</div>
+                    <div className="flex flex-col items-center text-center">
+                        <img src={match.awayTeam.crest} alt={match.awayTeam.name} className="w-20 h-20 md:w-24 md:h-24 object-contain mb-2"/>
+                        <p className="font-bold text-lg md:text-xl">{match.awayTeam.name}</p>
+                    </div>
                 </div>
-                <PredictionContent match={match} />
+
+                <hr className="border-white/10 my-6" />
+                
+                {isLoading && (
+                    <div className="text-center py-16">
+                        <div className="flex justify-center mb-4"><Loader /></div>
+                        <p className="text-lg font-semibold animate-pulse">{loadingMessage}</p>
+                        <p className="text-sm text-brand-text-muted mt-2">Please wait while we process the data.</p>
+                    </div>
+                )}
+
+                {error && (
+                    <div className="text-center py-16 text-red-400 bg-red-900/20 p-6 rounded-lg">
+                        <p className="font-bold text-xl">Prediction Failed</p>
+                        <p className="mt-2">{error}</p>
+                    </div>
+                )}
+
+                {!isLoading && !error && prediction && (
+                    <div className="animate-fade-in">
+                        <h2 className="text-2xl font-bold text-center mb-6 bg-clip-text text-transparent bg-gradient-to-r from-brand-primary to-white">AI Prediction Analysis</h2>
+                        
+                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+                            {/* Score & Winner */}
+                            <div className={`col-span-1 lg:col-span-3 grid grid-cols-3 items-center text-center p-4 rounded-xl border-2 transition-all duration-500 ${prediction.predictedWinner === 'DRAW' ? 'border-brand-primary/80 bg-brand-primary/10' : 'border-transparent'}`}>
+                                <div className={`p-4 rounded-lg border-2 transition-all duration-500 ${getWinnerStyling('HOME_TEAM')}`}>
+                                    <p className="font-bold text-lg">{match.homeTeam.shortName}</p>
+                                    <p className="font-black text-5xl">{prediction.homeScore}</p>
+                                </div>
+                                <div className="font-bold text-xl text-brand-text-muted">
+                                    <p>Predicted</p>
+                                    <p>Score</p>
+                                </div>
+                                <div className={`p-4 rounded-lg border-2 transition-all duration-500 ${getWinnerStyling('AWAY_TEAM')}`}>
+                                    <p className="font-bold text-lg">{match.awayTeam.shortName}</p>
+                                    <p className="font-black text-5xl">{prediction.awayScore}</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Reasoning */}
+                        <div className="bg-white/5 p-4 rounded-lg mb-6">
+                            <h3 className="font-bold text-lg text-brand-primary mb-2">AI Reasoning</h3>
+                            <p className="text-brand-text-muted text-sm whitespace-pre-wrap">{prediction.reasoning}</p>
+                        </div>
+
+                        {/* News & Key Players */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                             <div>
+                                <h3 className="font-bold text-lg mb-3 text-center">{match.homeTeam.shortName} - News & Key Players</h3>
+                                <div className="bg-white/5 p-4 rounded-lg mb-4">
+                                    <h4 className="font-semibold text-brand-primary mb-2 text-sm">Key Players to Watch</h4>
+                                    <ul className="list-disc list-inside text-sm text-brand-text-muted space-y-1">
+                                        {prediction.keyPlayers.home.map(p => <li key={p}>{p}</li>)}
+                                    </ul>
+                                </div>
+                                <div className="space-y-2">
+                                    {homeNews.slice(0, 3).map(item => <NewsItem key={item.url} item={item} />)}
+                                </div>
+                            </div>
+                             <div>
+                                <h3 className="font-bold text-lg mb-3 text-center">{match.awayTeam.shortName} - News & Key Players</h3>
+                                <div className="bg-white/5 p-4 rounded-lg mb-4">
+                                    <h4 className="font-semibold text-brand-primary mb-2 text-sm">Key Players to Watch</h4>
+                                    <ul className="list-disc list-inside text-sm text-brand-text-muted space-y-1">
+                                        {prediction.keyPlayers.away.map(p => <li key={p}>{p}</li>)}
+                                    </ul>
+                                </div>
+                                <div className="space-y-2">
+                                    {awayNews.slice(0, 3).map(item => <NewsItem key={item.url} item={item} />)}
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                )}
             </div>
-        </div>,
-        modalRoot
+        </div>
     );
 };

@@ -1,4 +1,3 @@
-
 export interface League {
     name: string;
     code: string;
@@ -12,25 +11,29 @@ export interface Team {
     crest: string;
 }
 
+export interface Score {
+    winner: 'HOME_TEAM' | 'AWAY_TEAM' | 'DRAW' | null;
+    fullTime: {
+        home: number | null;
+        away: number | null;
+    };
+}
+
+export interface Competition {
+    name: string;
+    code: string;
+    emblem: string;
+}
+
 export interface Match {
     id: number;
     utcDate: string;
-    status: string;
+    status: 'SCHEDULED' | 'TIMED' | 'IN_PLAY' | 'PAUSED' | 'FINISHED' | 'SUSPENDED' | 'POSTPONED' | 'CANCELLED';
     matchday: number;
     homeTeam: Team;
     awayTeam: Team;
-    competition: {
-        name: string;
-        code: string;
-        emblem: string;
-    };
-    score: {
-        winner: string | null;
-        fullTime: {
-            home: number | null;
-            away: number | null;
-        };
-    };
+    competition: Competition;
+    score: Score;
 }
 
 export interface FootballDataResponse {
@@ -42,7 +45,7 @@ export interface TavilySearchResult {
     url: string;
     content: string;
     score: number;
-    raw_content?: string;
+    raw_content: string | null;
 }
 
 export interface TavilyResponse {
@@ -50,10 +53,13 @@ export interface TavilyResponse {
 }
 
 export interface GeminiPrediction {
-    predictedScore: {
-        home: number;
-        away: number;
-    };
+    predictedWinner: 'HOME_TEAM' | 'AWAY_TEAM' | 'DRAW';
     reasoning: string;
-    keyPlayer: string;
+    confidence: number;
+    homeScore: number;
+    awayScore: number;
+    keyPlayers: {
+        home: string[];
+        away: string[];
+    };
 }
