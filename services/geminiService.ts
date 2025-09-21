@@ -1,15 +1,14 @@
+
 import { GoogleGenAI, Type } from "@google/genai";
-import { GEMINI_API_KEY } from '../constants';
 import type { Match, TavilySearchResult, GeminiPrediction } from '../types';
 
 let ai: GoogleGenAI | null = null;
 
 const getGenAIClient = (): GoogleGenAI => {
-    if (!GEMINI_API_KEY || GEMINI_API_KEY === 'YOUR_GEMINI_API_KEY_HERE') {
-        throw new Error("Gemini API key is not configured. Please add your key to the constants.ts file.");
-    }
+    // The GoogleGenAI SDK is initialized with the API key from the environment variables.
+    // This is a security best practice and is assumed to be pre-configured in the execution environment.
     if (!ai) {
-        ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
+        ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     }
     return ai;
 };
@@ -85,12 +84,9 @@ export const generatePrediction = async (
         return prediction;
     } catch (error) {
         console.error("Error generating prediction from Gemini:", error);
-        if (error instanceof Error && error.message.includes("API key not valid")) {
-             throw new Error("Failed to get a valid prediction. Your Gemini API key seems to be invalid. Please check it in constants.ts.");
-        }
-        // Forward the specific configuration error message
-        if (error instanceof Error && error.message.includes("Gemini API key is not configured")) {
-            throw error;
+        // This generic error is shown if the API key is missing from the environment or is invalid.
+        if (error instanceof Error && (error.message.includes("API key") || error.message.includes("provide an API key"))) {
+             throw new Error("Gemini API key is not configured.");
         }
         throw new Error("Failed to get a valid prediction from the AI model.");
     }

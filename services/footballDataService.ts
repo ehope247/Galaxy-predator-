@@ -1,3 +1,4 @@
+
 import { FOOTBALL_DATA_API_URL, FOOTBALL_DATA_API_KEY } from '../constants';
 import type { FootballDataResponse, Match } from '../types';
 

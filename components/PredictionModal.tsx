@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 import ReactDOM from 'react-dom';
 import type { Match, TavilySearchResult, GeminiPrediction } from '../types';
@@ -11,42 +12,57 @@ interface PredictionModalProps {
     onClose: () => void;
 }
 
+/**
+ * PredictionContent is the core component that fetches and displays the AI prediction and related news.
+ * It manages its own state for loading, data, and errors.
+ */
 const PredictionContent: React.FC<{ match: Match }> = ({ match }) => {
+    // State for storing fetched news articles
     const [homeNews, setHomeNews] = useState<TavilySearchResult[]>([]);
     const [awayNews, setAwayNews] = useState<TavilySearchResult[]>([]);
+    // State for the final AI prediction result
     const [prediction, setPrediction] = useState<GeminiPrediction | null>(null);
+    // State to track the loading process (fetching news, then generating prediction) and any errors.
     const [status, setStatus] = useState<{ step: 'news' | 'prediction' | 'complete'; error: string | null }>({
         step: 'news',
         error: null,
     });
 
+    /**
+     * This function orchestrates the data fetching process.
+     * It runs once when the component is first rendered.
+     */
     const fetchDetails = useCallback(async () => {
+        // Reset state and start the news fetching step
         setStatus({ step: 'news', error: null });
         try {
-            // Step 1: Fetch news
+            // Step 1: Fetch news for both teams in parallel to save time.
             const [homeNewsData, awayNewsData] = await Promise.all([
                 getTeamNews(match.homeTeam.name),
                 getTeamNews(match.awayTeam.name)
             ]);
+            // We only need the top 3 articles for the prediction prompt
             setHomeNews(homeNewsData.slice(0, 3));
             setAwayNews(awayNewsData.slice(0, 3));
 
-            // Step 2: Generate prediction
+            // Step 2: Once news is fetched, move to the prediction step.
             setStatus(s => ({ ...s, step: 'prediction' }));
             const predictionData = await generatePrediction(match, homeNewsData, awayNewsData);
             setPrediction(predictionData);
 
+            // Final step: All data is loaded, mark as complete.
             setStatus({ step: 'complete', error: null });
         } catch (err) {
             console.error(err);
+            // Handle and display specific, helpful error messages to the user.
             let errorMessage = 'Could not generate prediction. The service may be busy, please try again later.';
             if (err instanceof Error) {
                 if (err.message.includes("Tavily API key is not configured")) {
                     errorMessage = "Please add your Tavily API key to the `constants.ts` file to fetch the latest news.";
-                } else if (err.message.includes("Gemini API key is not configured")) {
-                    errorMessage = "Please add your Google Gemini API key to the `constants.ts` file to enable AI predictions.";
+                } else if (err.message.includes("Gemini API key")) {
+                    errorMessage = "The AI Prediction service is not configured. Please ensure the `API_KEY` environment variable is set in your project settings.";
                 } else if (err.message.includes("Failed to get a valid prediction")) {
-                    errorMessage = "The AI model failed to generate a prediction. This might be due to an invalid API key or a temporary service issue.";
+                    errorMessage = "The AI model failed to generate a prediction. This might be due to a temporary service issue.";
                 }
             }
             setStatus({ 
@@ -56,14 +72,19 @@ const PredictionContent: React.FC<{ match: Match }> = ({ match }) => {
         }
     }, [match]);
 
+    // The useEffect hook calls `fetchDetails` when the modal is opened.
     useEffect(() => {
         fetchDetails();
     }, [fetchDetails]);
     
+    // --- RENDER LOGIC ---
+
+    // Render an error message if something went wrong
     if (status.error) {
         return <div className="text-center p-8 text-red-400">{status.error}</div>;
     }
 
+    // Render a loading indicator while fetching data
     if (status.step !== 'complete') {
         const loadingMessages = {
             news: 'Gathering latest team news & stats...',
@@ -77,6 +98,7 @@ const PredictionContent: React.FC<{ match: Match }> = ({ match }) => {
         );
     }
 
+    // Render the final prediction view when data is successfully loaded
     return (
         <div className="animate-fade-in">
             <div className="p-6 bg-brand-surface/50 rounded-t-2xl">
