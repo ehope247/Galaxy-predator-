@@ -1,8 +1,9 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
 import type { Match, TavilySearchResult, GeminiPrediction } from '../types';
+import { GEMINI_API_KEY } from "../constants";
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
+const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
 
 const predictionSchema = {
     type: Type.OBJECT,
