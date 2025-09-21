@@ -4,7 +4,7 @@ import type { TavilyResponse, TavilySearchResult } from '../types';
 
 export const getTeamNews = async (teamName: string): Promise<TavilySearchResult[]> => {
     const apiKey = TAVILY_API_KEY;
-    if (!apiKey || apiKey === 'YOUR_TAVILY_API_KEY_HERE') {
+    if (!apiKey || apiKey === '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') {
         throw new Error("Tavily API key is not configured. Please add your key to the constants.ts file.");
     }
 
