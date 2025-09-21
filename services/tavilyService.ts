@@ -1,30 +1,19 @@
-import { TAVILY_API_URL } from '../constants';
 import type { TavilyResponse, TavilySearchResult } from '../types';
 
 export const getTeamNews = async (teamName: string): Promise<TavilySearchResult[]> => {
-    const apiKey = process.env.TAVILY_API_KEY;
-    if (!apiKey) {
-        throw new Error("Tavily API key is not configured. Please set the TAVILY_API_KEY environment variable in your project settings.");
-    }
-
-    const query = `latest news and injury updates for ${teamName} football club`;
-    
-    const response = await fetch(`https://corsproxy.io/?${TAVILY_API_URL}`, {
+    // The request is now sent to our internal API route.
+    const response = await fetch(`/api/tavily-search`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-            api_key: apiKey,
-            query: query,
-            search_depth: "basic",
-            include_answer: false,
-            max_results: 5,
-        }),
+        // We only need to send the team name; the server handles the rest.
+        body: JSON.stringify({ teamName }),
     });
 
     if (!response.ok) {
-        throw new Error(`Tavily API error: ${response.statusText}`);
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `Tavily API error: ${response.statusText}`);
     }
 
     const data: TavilyResponse = await response.json();

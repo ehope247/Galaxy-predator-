@@ -1,32 +1,17 @@
-import { FOOTBALL_DATA_API_URL } from '../constants';
 import type { FootballDataResponse, Match } from '../types';
 
 export const getFixtures = async (leagueCode: string): Promise<Match[]> => {
-    const apiKey = process.env.FOOTBALL_DATA_API_KEY;
-    if (!apiKey) {
-        throw new Error("Football Data API key is not configured. Please set the FOOTBALL_DATA_API_KEY environment variable in your project settings.");
-    }
-
-    const headers = {
-        'X-Auth-Token': apiKey,
-    };
-
-    // We fetch matches for the next 7 days
-    const dateFrom = new Date();
-    const dateTo = new Date();
-    dateTo.setDate(dateFrom.getDate() + 7);
-
-    const dateFromString = dateFrom.toISOString().split('T')[0];
-    const dateToString = dateTo.toISOString().split('T')[0];
-
-    const targetUrl = `${FOOTBALL_DATA_API_URL}/competitions/${leagueCode}/matches?dateFrom=${dateFromString}&dateTo=${dateToString}`;
-    
-    const response = await fetch(`https://corsproxy.io/?${encodeURIComponent(targetUrl)}`, { headers });
+    // The client now calls our own secure, server-side API route.
+    // This route will handle the API key and fetch the data from the external service.
+    const response = await fetch(`/api/football-data?leagueCode=${leagueCode}`);
     
     if (!response.ok) {
-        throw new Error(`Football-Data API error: ${response.statusText}`);
+        const errorData = await response.json().catch(() => ({}));
+        // The error message from our serverless function is now displayed to the user.
+        throw new Error(errorData.error || `API error: ${response.statusText}`);
     }
 
     const data: FootballDataResponse = await response.json();
+    // Filter for only upcoming matches.
     return data.matches.filter(match => match.status === 'SCHEDULED' || match.status === 'TIMED');
 };
