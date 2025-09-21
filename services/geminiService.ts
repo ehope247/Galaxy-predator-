@@ -3,7 +3,7 @@ import { GoogleGenAI, Type } from "@google/genai";
 import type { Match, TavilySearchResult, GeminiPrediction } from '../types';
 import { GEMINI_API_KEY } from "../constants";
 
-const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
+const ai = new GoogleGenAI({ apiKey: AIzaSyCbIjQswVo9qr-PYxYkhgEmLq3FlLqw5Og });
 
 const predictionSchema = {
     type: Type.OBJECT,
