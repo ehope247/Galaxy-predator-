@@ -2,7 +2,7 @@ import { TAVILY_API_URL, TAVILY_API_KEY } from '../constants';
 import type { TavilyResponse, TavilySearchResult } from '../types';
 
 export const getTeamNews = async (teamName: string): Promise<TavilySearchResult[]> => {
-    const apiKey = TAVILY_API_KEY;
+    const apiKey = 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;
     if (!apiKey) {
         throw new Error("Tavily API key is not configured in constants.ts.");
     }
