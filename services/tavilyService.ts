@@ -1,19 +1,21 @@
-
 import { TAVILY_API_URL, TAVILY_API_KEY } from '../constants';
 import type { TavilyResponse, TavilySearchResult } from '../types';
 
-const PROXY_URL = 'https://corsproxy.io/?';
-
 export const getTeamNews = async (teamName: string): Promise<TavilySearchResult[]> => {
+    const apiKey = TAVILY_API_KEY;
+    if (!apiKey) {
+        throw new Error("Tavily API key is not configured in constants.ts.");
+    }
+
     const query = `latest news and injury updates for ${teamName} football club`;
     
-    const response = await fetch(`${PROXY_URL}${encodeURIComponent(https://api.tavily.com/search)}`, {
+    const response = await fetch(`https://corsproxy.io/?${TAVILY_API_URL}`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${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}`,
         },
         body: JSON.stringify({
+            api_key: apiKey,
             query: query,
             search_depth: "basic",
             include_answer: false,

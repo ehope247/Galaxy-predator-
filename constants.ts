@@ -1,14 +1,12 @@
-
 import type { League } from './types';
-
-// IMPORTANT: In a production environment, these API keys should be handled by a secure backend proxy.
-// Exposing them directly in the frontend code is a security risk.
-// This is done for demonstration purposes only as per the project constraints.
-export const FOOTBALL_DATA_API_KEY = 'aa5ce28e561641879baddc65c273298d';
-export const TAVILY_API_KEY = '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'; // This seems to be a dev key. Replace if needed.
 
 export const FOOTBALL_DATA_API_URL = 'https://api.football-data.org/v4';
 export const TAVILY_API_URL = 'https://api.tavily.com/search';
+
+// Hardcoded API keys to resolve environment variable issues in this context.
+// In a production environment, these should be stored securely as environment variables.
+export const FOOTBALL_DATA_API_KEY = 'aa5ce28e561641879baddc65c273298d';
+export const TAVILY_API_KEY = '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';
 
 export const LEAGUES: League[] = [
     { name: 'Premier League', code: 'PL', logo: 'https://crests.football-data.org/PL.png' },

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import ReactDOM from 'react-dom';
 import type { Match, TavilySearchResult, GeminiPrediction } from '../types';
@@ -16,13 +15,15 @@ const PredictionContent: React.FC<{ match: Match }> = ({ match }) => {
     const [homeNews, setHomeNews] = useState<TavilySearchResult[]>([]);
     const [awayNews, setAwayNews] = useState<TavilySearchResult[]>([]);
     const [prediction, setPrediction] = useState<GeminiPrediction | null>(null);
-    const [isLoading, setIsLoading] = useState<boolean>(true);
-    const [error, setError] = useState<string | null>(null);
+    const [status, setStatus] = useState<{ step: 'news' | 'prediction' | 'complete'; error: string | null }>({
+        step: 'news',
+        error: null,
+    });
 
     const fetchDetails = useCallback(async () => {
-        setIsLoading(true);
-        setError(null);
+        setStatus({ step: 'news', error: null });
         try {
+            // Step 1: Fetch news
             const [homeNewsData, awayNewsData] = await Promise.all([
                 getTeamNews(match.homeTeam.name),
                 getTeamNews(match.awayTeam.name)
@@ -30,14 +31,18 @@ const PredictionContent: React.FC<{ match: Match }> = ({ match }) => {
             setHomeNews(homeNewsData.slice(0, 3));
             setAwayNews(awayNewsData.slice(0, 3));
 
+            // Step 2: Generate prediction
+            setStatus(s => ({ ...s, step: 'prediction' }));
             const predictionData = await generatePrediction(match, homeNewsData, awayNewsData);
             setPrediction(predictionData);
 
+            setStatus({ step: 'complete', error: null });
         } catch (err) {
-            setError('Could not generate prediction. Please try again later.');
             console.error(err);
-        } finally {
-            setIsLoading(false);
+            setStatus({ 
+                step: 'complete',
+                error: 'Could not generate prediction. The service may be busy, please try again later.' 
+            });
         }
     }, [match]);
 
@@ -45,12 +50,21 @@ const PredictionContent: React.FC<{ match: Match }> = ({ match }) => {
         fetchDetails();
     }, [fetchDetails]);
     
-    if (isLoading) {
-        return <div className="flex flex-col items-center justify-center p-8 space-y-4"><Loader /><p className="text-brand-text-muted">Analyzing data & generating prediction...</p></div>;
+    if (status.error) {
+        return <div className="text-center p-8 text-red-400">{status.error}</div>;
     }
 
-    if (error) {
-        return <div className="text-center p-8 text-red-400">{error}</div>;
+    if (status.step !== 'complete') {
+        const loadingMessages = {
+            news: 'Gathering latest team news & stats...',
+            prediction: 'Consulting with our AI expert for the prediction...'
+        };
+        return (
+            <div className="flex flex-col items-center justify-center p-8 space-y-4 min-h-[300px]">
+                <Loader />
+                <p className="text-brand-text-muted text-center animate-fade-in">{loadingMessages[status.step]}</p>
+            </div>
+        );
     }
 
     return (

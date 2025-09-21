@@ -1,14 +1,16 @@
-
 import { FOOTBALL_DATA_API_URL, FOOTBALL_DATA_API_KEY } from '../constants';
 import type { FootballDataResponse, Match } from '../types';
 
-const PROXY_URL = 'https://corsproxy.io/?';
-
-const headers = {
-    'X-Auth-Token': aa5ce28e561641879baddc65c273298d,
-};
-
 export const getFixtures = async (leagueCode: string): Promise<Match[]> => {
+    const apiKey = FOOTBALL_DATA_API_KEY;
+    if (!apiKey) {
+        throw new Error("Football Data API key is not configured in constants.ts.");
+    }
+
+    const headers = {
+        'X-Auth-Token': apiKey,
+    };
+
     // We fetch matches for the next 7 days
     const dateFrom = new Date();
     const dateTo = new Date();
@@ -19,10 +21,7 @@ export const getFixtures = async (leagueCode: string): Promise<Match[]> => {
 
     const targetUrl = `${FOOTBALL_DATA_API_URL}/competitions/${leagueCode}/matches?dateFrom=${dateFromString}&dateTo=${dateToString}`;
     
-    const response = await fetch(
-        `${PROXY_URL}${encodeURIComponent(targetUrl)}`, 
-        { headers }
-    );
+    const response = await fetch(`https://corsproxy.io/?${encodeURIComponent(targetUrl)}`, { headers });
     
     if (!response.ok) {
         throw new Error(`Football-Data API error: ${response.statusText}`);
