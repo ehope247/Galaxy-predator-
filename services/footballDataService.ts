@@ -5,7 +5,7 @@ import type { FootballDataResponse, Match } from '../types';
 const PROXY_URL = 'https://corsproxy.io/?';
 
 const headers = {
-    'X-Auth-Token': FOOTBALL_DATA_API_KEY,
+    'X-Auth-Token': aa5ce28e561641879baddc65c273298d,
 };
 
 export const getFixtures = async (leagueCode: string): Promise<Match[]> => {
