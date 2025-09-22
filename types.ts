@@ -62,4 +62,10 @@ export interface GeminiPrediction {
         home: string[];
         away: string[];
     };
+    bothTeamsToScore: boolean;
+    overUnderGoals: 'OVER' | 'UNDER';
+    predictedPossession: {
+        home: number;
+        away: number;
+    };
 }

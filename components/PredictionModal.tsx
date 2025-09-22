@@ -71,7 +71,7 @@ export const PredictionModal: React.FC<PredictionModalProps> = ({ match, onClose
     return (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 animate-fade-in" onClick={onClose}>
             <div 
-                className="bg-brand-surface border border-white/10 rounded-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto scrollbar-thin scrollbar-thumb-brand-primary/50 scrollbar-track-transparent p-6 md:p-8 relative transform animate-slide-up"
+                className="bg-brand-surface border border-white/10 rounded-2xl w-[95vw] sm:w-full max-w-4xl max-h-[90vh] overflow-y-auto scrollbar-thin scrollbar-thumb-brand-primary/50 scrollbar-track-transparent p-6 md:p-8 relative transform animate-slide-up"
                 onClick={(e) => e.stopPropagation()}
             >
                 <button onClick={onClose} className="absolute top-4 right-4 text-brand-text-muted hover:text-white transition-colors">
@@ -80,13 +80,13 @@ export const PredictionModal: React.FC<PredictionModalProps> = ({ match, onClose
                 
                 <div className="flex items-center justify-center space-x-4 md:space-x-8 mb-6">
                     <div className="flex flex-col items-center text-center">
-                        <img src={match.homeTeam.crest} alt={match.homeTeam.name} className="w-20 h-20 md:w-24 md:h-24 object-contain mb-2"/>
-                        <p className="font-bold text-lg md:text-xl">{match.homeTeam.name}</p>
+                        <img src={match.homeTeam.crest} alt={match.homeTeam.name} className="w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 object-contain mb-2"/>
+                        <p className="font-bold text-base sm:text-lg md:text-xl">{match.homeTeam.name}</p>
                     </div>
-                    <div className="font-black text-3xl md:text-5xl text-brand-text-muted">VS</div>
+                    <div className="font-black text-2xl sm:text-3xl md:text-5xl text-brand-text-muted">VS</div>
                     <div className="flex flex-col items-center text-center">
-                        <img src={match.awayTeam.crest} alt={match.awayTeam.name} className="w-20 h-20 md:w-24 md:h-24 object-contain mb-2"/>
-                        <p className="font-bold text-lg md:text-xl">{match.awayTeam.name}</p>
+                        <img src={match.awayTeam.crest} alt={match.awayTeam.name} className="w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 object-contain mb-2"/>
+                        <p className="font-bold text-base sm:text-lg md:text-xl">{match.awayTeam.name}</p>
                     </div>
                 </div>
 
@@ -116,7 +116,7 @@ export const PredictionModal: React.FC<PredictionModalProps> = ({ match, onClose
                             <div className={`col-span-1 lg:col-span-3 grid grid-cols-3 items-center text-center p-4 rounded-xl border-2 transition-all duration-500 ${prediction.predictedWinner === 'DRAW' ? 'border-brand-primary/80 bg-brand-primary/10' : 'border-transparent'}`}>
                                 <div className={`p-4 rounded-lg border-2 transition-all duration-500 ${getWinnerStyling('HOME_TEAM')}`}>
                                     <p className="font-bold text-lg">{match.homeTeam.shortName}</p>
-                                    <p className="font-black text-5xl">{prediction.homeScore}</p>
+                                    <p className="font-black text-4xl sm:text-5xl">{prediction.homeScore}</p>
                                 </div>
                                 <div className="font-bold text-xl text-brand-text-muted">
                                     <p>Predicted</p>
@@ -124,7 +124,38 @@ export const PredictionModal: React.FC<PredictionModalProps> = ({ match, onClose
                                 </div>
                                 <div className={`p-4 rounded-lg border-2 transition-all duration-500 ${getWinnerStyling('AWAY_TEAM')}`}>
                                     <p className="font-bold text-lg">{match.awayTeam.shortName}</p>
-                                    <p className="font-black text-5xl">{prediction.awayScore}</p>
+                                    <p className="font-black text-4xl sm:text-5xl">{prediction.awayScore}</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Statistical Outlook */}
+                        <div className="mb-6">
+                            <h3 className="text-lg font-bold text-center mb-4 text-brand-text">AI Statistical Outlook</h3>
+                            <div className="grid grid-cols-2 md:grid-cols-3 gap-2 md:gap-4">
+                                <div className="bg-white/5 p-3 rounded-lg text-center">
+                                    <p className="text-xs sm:text-sm font-semibold text-brand-text-muted mb-1">Both Teams to Score</p>
+                                    <p className={`font-bold text-xl sm:text-2xl ${prediction.bothTeamsToScore ? 'text-green-400' : 'text-red-400'}`}>
+                                        {prediction.bothTeamsToScore ? 'Yes' : 'No'}
+                                    </p>
+                                </div>
+                                <div className="bg-white/5 p-3 rounded-lg text-center">
+                                    <p className="text-xs sm:text-sm font-semibold text-brand-text-muted mb-1">Over/Under 2.5</p>
+                                    <p className="font-bold text-xl sm:text-2xl text-brand-primary">{prediction.overUnderGoals}</p>
+                                </div>
+                                <div className="bg-white/5 p-3 rounded-lg text-center col-span-2 md:col-span-1">
+                                    <p className="text-xs sm:text-sm font-semibold text-brand-text-muted mb-2">Predicted Possession</p>
+                                    <div className="flex justify-between items-center text-xs mb-1 px-1">
+                                        <span className="font-bold">{match.homeTeam.shortName}</span>
+                                        <span className="font-bold">{match.awayTeam.shortName}</span>
+                                    </div>
+                                    <div className="w-full bg-brand-secondary/30 rounded-full h-2.5">
+                                        <div className="bg-brand-primary h-2.5 rounded-full" style={{ width: `${prediction.predictedPossession.home}%` }}></div>
+                                    </div>
+                                    <div className="flex justify-between items-center text-xs mt-1 px-1">
+                                        <span>{prediction.predictedPossession.home}%</span>
+                                        <span>{prediction.predictedPossession.away}%</span>
+                                    </div>
                                 </div>
                             </div>
                         </div>
