@@ -41,13 +41,14 @@ export default async function handler(req: Request) {
             });
         }
         
-        const query = `latest news and injury updates for ${teamName} football club`;
+        const query = `latest football team news, player injuries, transfers, and match previews for ${teamName}`;
         const tavilyPayload = {
             api_key: apiKey,
             query: query,
             search_depth: "basic",
             include_answer: false,
             max_results: 5,
+            topic: "news"
         };
 
         const response = await fetch('https://api.tavily.com/search', {

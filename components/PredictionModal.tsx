@@ -30,17 +30,35 @@ const FormResultBadge: React.FC<{ result: 'W' | 'D' | 'L' }> = ({ result }) => {
 const FormTable: React.FC<{ title: string; form: MatchResult[] }> = ({ title, form }) => (
     <div>
         <h3 className="font-bold text-lg mb-3 text-center">{title}</h3>
-        <div className="bg-white/5 p-3 rounded-lg space-y-2">
-            {form.length > 0 ? form.map((item, index) => (
-                <div key={index} className="flex items-center justify-between text-xs sm:text-sm p-2 bg-black/20 rounded">
-                    <div className="flex items-center space-x-2">
-                         <span className="font-bold text-brand-text-muted w-4 h-4 flex items-center justify-center bg-black/30 rounded-full text-xs">{item.location}</span>
-                        <span className="truncate w-28 sm:w-auto">{item.opponent}</span>
-                    </div>
-                    <span className="font-mono font-bold">{item.score}</span>
-                    <FormResultBadge result={item.result} />
-                </div>
-            )) : <p className="text-sm text-brand-text-muted text-center py-4">No recent match data available.</p>}
+        <div className="bg-white/5 p-2 sm:p-3 rounded-lg">
+            {form.length > 0 ? (
+                <table className="w-full text-left text-xs sm:text-sm">
+                    <thead>
+                        <tr className="border-b border-white/10 text-brand-text-muted">
+                            <th className="p-2 font-semibold text-center">Loc</th>
+                            <th className="p-2 font-semibold">Opponent</th>
+                            <th className="p-2 font-semibold text-center">Score</th>
+                            <th className="p-2 font-semibold text-center">Res</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {form.map((item, index) => (
+                            <tr key={index} className="border-b border-white/5 last:border-b-0">
+                                <td className="p-2 text-center">
+                                    <span className="font-bold text-brand-text-muted w-5 h-5 flex items-center justify-center bg-black/30 rounded-full text-xs mx-auto">{item.location}</span>
+                                </td>
+                                <td className="p-2 font-semibold truncate">{item.opponent}</td>
+                                <td className="p-2 text-center font-mono font-bold">{item.score}</td>
+                                <td className="p-2">
+                                    <div className="flex justify-center">
+                                        <FormResultBadge result={item.result} />
+                                    </div>
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            ) : <p className="text-sm text-brand-text-muted text-center py-4">No recent match data available.</p>}
         </div>
     </div>
 );
@@ -172,18 +190,24 @@ export const PredictionModal: React.FC<PredictionModalProps> = ({ match, onClose
                             <div className="bg-white/5 p-4 rounded-lg">
                                 <h3 className="text-base sm:text-lg font-bold text-center mb-3 text-brand-text">Head-to-Head</h3>
                                 {prediction.h2hSummary.numberOfMatches > 0 ? (
-                                    <div className="space-y-3">
-                                        <div className="flex justify-between items-center text-sm font-semibold">
-                                            <span className="text-left">{match.homeTeam.shortName} Wins</span>
-                                            <span className="text-center">Draws</span>
-                                            <span className="text-right">{match.awayTeam.shortName} Wins</span>
-                                        </div>
-                                        <div className="w-full bg-black/20 rounded-full h-6 flex overflow-hidden">
-                                            <div className="bg-brand-primary flex items-center justify-center font-bold" style={{ width: `${(prediction.h2hSummary.homeWins / prediction.h2hSummary.numberOfMatches) * 100}%` }}>{prediction.h2hSummary.homeWins}</div>
-                                            <div className="bg-gray-500 flex items-center justify-center font-bold" style={{ width: `${(prediction.h2hSummary.draws / prediction.h2hSummary.numberOfMatches) * 100}%` }}>{prediction.h2hSummary.draws}</div>
-                                            <div className="bg-brand-secondary flex items-center justify-center font-bold" style={{ width: `${(prediction.h2hSummary.awayWins / prediction.h2hSummary.numberOfMatches) * 100}%` }}>{prediction.h2hSummary.awayWins}</div>
-                                        </div>
-                                         <p className="text-center text-xs text-brand-text-muted">Based on {prediction.h2hSummary.numberOfMatches} matches</p>
+                                    <div>
+                                        <table className="w-full text-center text-sm sm:text-base">
+                                            <thead>
+                                                <tr className="text-brand-text-muted">
+                                                    <th className="p-2 font-semibold">{match.homeTeam.shortName} Wins</th>
+                                                    <th className="p-2 font-semibold">Draws</th>
+                                                    <th className="p-2 font-semibold">{match.awayTeam.shortName} Wins</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <tr className="font-bold text-xl sm:text-2xl">
+                                                    <td className="p-2 text-brand-primary">{prediction.h2hSummary.homeWins}</td>
+                                                    <td className="p-2">{prediction.h2hSummary.draws}</td>
+                                                    <td className="p-2 text-brand-secondary">{prediction.h2hSummary.awayWins}</td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                        <p className="text-center text-xs text-brand-text-muted mt-2">Based on {prediction.h2hSummary.numberOfMatches} matches</p>
                                     </div>
                                 ) : (
                                     <p className="text-sm text-brand-text-muted text-center py-4">No head-to-head data available.</p>
