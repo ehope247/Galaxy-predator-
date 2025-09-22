@@ -16,12 +16,14 @@
         theme: {
           extend: {
             colors: {
-              'brand-bg': '#0a0a0a',
-              'brand-surface': '#1a1a1a',
-              'brand-primary': '#00aaff',
-              'brand-secondary': '#e6007a',
-              'brand-text': '#e0e0e0',
-              'brand-text-muted': '#a0a0a0',
+              'brand-bg': '#0D1117',
+              'brand-surface': '#161B22',
+              'brand-primary': '#30C59B', // A vibrant green
+              'brand-secondary': '#E6007A',
+              'brand-text': '#C9D1D9',
+              'brand-text-muted': '#8B949E',
+              'stadium-green-dark': '#01311F',
+              'stadium-green-light': '#02472C',
             },
             fontFamily: {
               sans: ['Inter', 'sans-serif'],
@@ -31,6 +33,7 @@
               'fade-in': 'fade-in 0.5s ease-out',
               'slide-up': 'slide-up 0.5s ease-out',
               'pulse-slow': 'pulse-slow 8s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+              'spotlight': 'spotlight 10s ease-in-out infinite',
             },
             keyframes: {
               'gradient-bg': {
@@ -48,6 +51,13 @@
               'pulse-slow': {
                 '0%, 100%': { opacity: '0.2' },
                 '50%': { opacity: '0.4' },
+              },
+              'spotlight': {
+                '0%': { transform: 'translate(-50%, -50%) rotate(0deg) scale(1)' },
+                '25%': { transform: 'translate(-50%, -50%) rotate(20deg) scale(1.2)' },
+                '50%': { transform: 'translate(-50%, -50%) rotate(0deg) scale(1.5)' },
+                '75%': { transform: 'translate(-50%, -50%) rotate(-20deg) scale(1.2)' },
+                '100%': { transform: 'translate(-50%, -50%) rotate(0deg) scale(1)' },
               },
             }
           }

@@ -30,11 +30,11 @@ const FormResultBadge: React.FC<{ result: 'W' | 'D' | 'L' }> = ({ result }) => {
 const FormTable: React.FC<{ title: string; form: MatchResult[] }> = ({ title, form }) => (
     <div>
         <h3 className="font-bold text-lg mb-3 text-center">{title}</h3>
-        <div className="bg-white/5 p-2 sm:p-3 rounded-lg">
+        <div className="bg-brand-surface/50 border border-gray-700 p-2 sm:p-3 rounded-lg overflow-x-auto">
             {form.length > 0 ? (
-                <table className="w-full text-left text-xs sm:text-sm">
+                <table className="w-full text-left text-xs sm:text-sm border-collapse min-w-[300px]">
                     <thead>
-                        <tr className="border-b border-white/10 text-brand-text-muted">
+                        <tr className="border-b-2 border-gray-600 text-brand-text-muted bg-black/20">
                             <th className="p-2 font-semibold text-center">Loc</th>
                             <th className="p-2 font-semibold">Opponent</th>
                             <th className="p-2 font-semibold text-center">Score</th>
@@ -43,7 +43,7 @@ const FormTable: React.FC<{ title: string; form: MatchResult[] }> = ({ title, fo
                     </thead>
                     <tbody>
                         {form.map((item, index) => (
-                            <tr key={index} className="border-b border-white/5 last:border-b-0">
+                            <tr key={index} className="border-b border-gray-800 last:border-b-0 hover:bg-white/5">
                                 <td className="p-2 text-center">
                                     <span className="font-bold text-brand-text-muted w-5 h-5 flex items-center justify-center bg-black/30 rounded-full text-xs mx-auto">{item.location}</span>
                                 </td>
@@ -70,7 +70,6 @@ export const PredictionModal: React.FC<PredictionModalProps> = ({ match, onClose
     const [error, setError] = useState<string | null>(null);
     const [loadingMessage, setLoadingMessage] = useState("Analyzing match data...");
     
-    // News state is kept separate as it's fetched independently
     const [homeNews, setHomeNews] = useState<TavilySearchResult[]>([]);
     const [awayNews, setAwayNews] = useState<TavilySearchResult[]>([]);
 
@@ -81,7 +80,7 @@ export const PredictionModal: React.FC<PredictionModalProps> = ({ match, onClose
             setError(null);
 
             try {
-                setLoadingMessage(`Gathering latest news...`);
+                setLoadingMessage(`Gathering latest news for 2025/26 season...`);
                 const [homeNewsData, awayNewsData] = await Promise.all([
                     getTeamNews(match.homeTeam.name),
                     getTeamNews(match.awayTeam.name)
@@ -119,7 +118,7 @@ export const PredictionModal: React.FC<PredictionModalProps> = ({ match, onClose
     return (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 animate-fade-in" onClick={onClose}>
             <div 
-                className="bg-brand-surface border border-white/10 rounded-2xl w-[95vw] sm:w-full max-w-5xl max-h-[90vh] overflow-y-auto scrollbar-thin scrollbar-thumb-brand-primary/50 scrollbar-track-transparent p-4 sm:p-6 md:p-8 relative transform animate-slide-up"
+                className="bg-brand-surface border border-gray-700 rounded-2xl w-[95vw] sm:w-full max-w-5xl max-h-[90vh] overflow-y-auto scrollbar-thin scrollbar-thumb-brand-primary/50 scrollbar-track-transparent p-4 sm:p-6 md:p-8 relative transform animate-slide-up"
                 onClick={(e) => e.stopPropagation()}
             >
                 <button onClick={onClose} className="absolute top-4 right-4 text-brand-text-muted hover:text-white transition-colors z-10">
@@ -159,9 +158,7 @@ export const PredictionModal: React.FC<PredictionModalProps> = ({ match, onClose
                     <div className="animate-fade-in space-y-6">
                         <h2 className="text-xl sm:text-2xl font-bold text-center bg-clip-text text-transparent bg-gradient-to-r from-brand-primary to-white">AI Prediction Analysis</h2>
                         
-                        {/* Main Prediction Grid */}
                         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                            {/* Score & Winner */}
                             <div className="lg:col-span-2 grid grid-cols-3 items-center text-center p-4 rounded-xl border-2 bg-black/20 transition-all duration-500">
                                 <div className={`p-2 sm:p-4 rounded-lg border-2 transition-all duration-500 ${getWinnerStyling('HOME_TEAM')}`}>
                                     <p className="font-bold text-sm sm:text-lg">{match.homeTeam.shortName}</p>
@@ -177,22 +174,19 @@ export const PredictionModal: React.FC<PredictionModalProps> = ({ match, onClose
                                     <p className="font-black text-3xl sm:text-5xl">{prediction.awayScore}</p>
                                 </div>
                             </div>
-                            {/* Reasoning */}
-                            <div className="bg-white/5 p-4 rounded-lg">
+                            <div className="bg-white/5 p-4 rounded-lg border border-gray-800">
                                 <h3 className="font-bold text-base sm:text-lg text-brand-primary mb-2">AI Reasoning</h3>
                                 <p className="text-brand-text-muted text-xs sm:text-sm whitespace-pre-wrap max-h-48 overflow-y-auto scrollbar-thin scrollbar-thumb-white/20">{prediction.reasoning}</p>
                             </div>
                         </div>
 
-                        {/* H2H and Stats */}
                          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                            {/* H2H Summary */}
-                            <div className="bg-white/5 p-4 rounded-lg">
+                            <div className="bg-brand-surface/50 border border-gray-700 p-4 rounded-lg">
                                 <h3 className="text-base sm:text-lg font-bold text-center mb-3 text-brand-text">Head-to-Head</h3>
                                 {prediction.h2hSummary.numberOfMatches > 0 ? (
-                                    <div>
+                                    <div className="overflow-x-auto">
                                         <table className="w-full text-center text-sm sm:text-base">
-                                            <thead>
+                                            <thead className="bg-black/20">
                                                 <tr className="text-brand-text-muted">
                                                     <th className="p-2 font-semibold">{match.homeTeam.shortName} Wins</th>
                                                     <th className="p-2 font-semibold">Draws</th>
@@ -214,8 +208,7 @@ export const PredictionModal: React.FC<PredictionModalProps> = ({ match, onClose
                                 )}
                             </div>
 
-                             {/* Statistical Outlook */}
-                             <div className="bg-white/5 p-4 rounded-lg">
+                             <div className="bg-brand-surface/50 border border-gray-700 p-4 rounded-lg">
                                 <h3 className="text-base sm:text-lg font-bold text-center mb-3 text-brand-text">AI Statistical Outlook</h3>
                                 <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-center">
                                     <div className="bg-black/20 p-2 rounded-lg">
@@ -234,17 +227,15 @@ export const PredictionModal: React.FC<PredictionModalProps> = ({ match, onClose
                             </div>
                         </div>
 
-                        {/* Form Tables */}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <FormTable title={`${match.homeTeam.shortName} - Recent Form`} form={prediction.form.home} />
                             <FormTable title={`${match.awayTeam.shortName} - Recent Form`} form={prediction.form.away} />
                         </div>
 
-                        {/* News & Key Players */}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                              <div>
                                 <h3 className="font-bold text-lg mb-3 text-center">{match.homeTeam.shortName} - News & Key Players</h3>
-                                <div className="bg-white/5 p-4 rounded-lg mb-4">
+                                <div className="bg-white/5 border border-gray-800 p-4 rounded-lg mb-4">
                                     <h4 className="font-semibold text-brand-primary mb-2 text-sm">Key Players to Watch</h4>
                                     <ul className="list-disc list-inside text-sm text-brand-text-muted space-y-1">
                                         {prediction.keyPlayers.home.map(p => <li key={p}>{p}</li>)}
@@ -256,7 +247,7 @@ export const PredictionModal: React.FC<PredictionModalProps> = ({ match, onClose
                             </div>
                              <div>
                                 <h3 className="font-bold text-lg mb-3 text-center">{match.awayTeam.shortName} - News & Key Players</h3>
-                                <div className="bg-white/5 p-4 rounded-lg mb-4">
+                                <div className="bg-white/5 border border-gray-800 p-4 rounded-lg mb-4">
                                     <h4 className="font-semibold text-brand-primary mb-2 text-sm">Key Players to Watch</h4>
                                     <ul className="list-disc list-inside text-sm text-brand-text-muted space-y-1">
                                         {prediction.keyPlayers.away.map(p => <li key={p}>{p}</li>)}

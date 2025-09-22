@@ -45,7 +45,7 @@ const App: React.FC = () => {
     return (
         <>
             <Background />
-            <div className="relative min-h-screen font-sans">
+            <div className="relative min-h-screen font-sans overflow-x-hidden">
                 <Header />
                 <main className="container mx-auto px-4 py-8">
                     <LeagueSelector
