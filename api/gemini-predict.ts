@@ -2,10 +2,22 @@
 // This code runs on the server, not in the browser.
 
 import { GoogleGenAI, Type } from "@google/genai";
-import type { Match, TavilySearchResult, GeminiPrediction } from '../types';
+import type { Match, TavilySearchResult, GeminiPrediction, MatchResult, H2HSummary } from '../types';
 
 export const config = {
   runtime: 'edge',
+};
+
+// Helper function to fetch data from the football-data.org API
+const fetchFootballData = async (url: string, apiKey: string) => {
+    const response = await fetch(url, { headers: { 'X-Auth-Token': apiKey } });
+    if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`Football-Data API error at ${url}:`, errorText);
+        // Return null instead of throwing to allow partial data predictions
+        return null; 
+    }
+    return response.json();
 };
 
 // Helper function to format news content for the prompt
@@ -14,6 +26,24 @@ const formatNews = (teamName: string, news: TavilySearchResult[]): string => {
         return `No recent news found for ${teamName}.`;
     }
     return `Recent news for ${teamName}:\n` + news.map(item => `- ${item.title}: ${item.content}`).join('\n');
+};
+
+const getTeamForm = (matches: any[], teamId: number): MatchResult[] => {
+    if (!matches) return [];
+    return matches.map((m: any): MatchResult => {
+        const isHome = m.homeTeam.id === teamId;
+        const opponent = isHome ? m.awayTeam.name : m.homeTeam.name;
+        const score = `${m.score.fullTime.home} - ${m.score.fullTime.away}`;
+        let result: 'W' | 'D' | 'L';
+        if (m.score.winner === 'DRAW') {
+            result = 'D';
+        } else if ((isHome && m.score.winner === 'HOME_TEAM') || (!isHome && m.score.winner === 'AWAY_TEAM')) {
+            result = 'W';
+        } else {
+            result = 'L';
+        }
+        return { opponent, result, score, location: isHome ? 'H' : 'A' };
+    });
 };
 
 export default async function handler(req: Request) {
@@ -35,25 +65,40 @@ export default async function handler(req: Request) {
         });
     }
     
-    // The API key is read from environment variables on the server.
-    if (!process.env.API_KEY) {
-        return new Response(JSON.stringify({ error: "Gemini API key is not configured. Please set the API_KEY environment variable." }), {
-            status: 500,
-            headers: { 'Content-Type': 'application/json' },
-        });
+    const geminiApiKey = process.env.API_KEY;
+    const footballApiKey = process.env.FOOTBALL_DATA_API_KEY;
+
+    if (!geminiApiKey) {
+        return new Response(JSON.stringify({ error: "Gemini API key is not configured." }), { status: 500, headers: { 'Content-Type': 'application/json' } });
+    }
+     if (!footballApiKey) {
+        return new Response(JSON.stringify({ error: "Football Data API key is not configured." }), { status: 500, headers: { 'Content-Type': 'application/json' } });
     }
 
     try {
         const { match, homeNews, awayNews } = await req.json() as { match: Match; homeNews: TavilySearchResult[]; awayNews: TavilySearchResult[] };
         
-        // FIX: Initialize GoogleGenAI with a named apiKey parameter
-        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+        // Fetch H2H and Form data
+        const [h2hData, homeFormData, awayFormData] = await Promise.all([
+            fetchFootballData(`https://api.football-data.org/v4/matches/${match.id}/head2head`, footballApiKey),
+            fetchFootballData(`https://api.football-data.org/v4/teams/${match.homeTeam.id}/matches?status=FINISHED&limit=5`, footballApiKey),
+            fetchFootballData(`https://api.football-data.org/v4/teams/${match.awayTeam.id}/matches?status=FINISHED&limit=5`, footballApiKey)
+        ]);
         
-        const homeTeam = match.homeTeam.name;
-        const awayTeam = match.awayTeam.name;
+        const h2hSummary: H2HSummary = h2hData?.aggregates ? {
+            numberOfMatches: h2hData.aggregates.numberOfMatches,
+            homeWins: h2hData.aggregates.homeTeam.wins,
+            awayWins: h2hData.aggregates.awayTeam.wins,
+            draws: h2hData.aggregates.homeTeam.draws,
+        } : { numberOfMatches: 0, homeWins: 0, awayWins: 0, draws: 0 };
 
+        const homeForm = getTeamForm(homeFormData?.matches, match.homeTeam.id);
+        const awayForm = getTeamForm(awayFormData?.matches, match.awayTeam.id);
+        
+        const ai = new GoogleGenAI({ apiKey: geminiApiKey });
+        
         const systemInstruction = `You are a world-class football analyst. Your task is to predict the outcome of an upcoming football match.
-Analyze the provided data which includes match details, team information, and recent news for both teams (including potential injuries, form, and morale).
+Analyze the provided data which includes match details, head-to-head stats, recent team form, and the latest news for both teams.
 Based on your analysis, provide a detailed prediction in JSON format.
 Your prediction must include:
 1.  The predicted winner ('HOME_TEAM', 'AWAY_TEAM', or 'DRAW').
@@ -64,21 +109,31 @@ Your prediction must include:
 6.  A prediction for 'Both Teams to Score' (true/false).
 7.  A prediction for 'Over/Under 2.5 Goals' ('OVER' or 'UNDER').
 8.  The predicted match possession percentages for home and away teams.
-The reasoning should be objective, data-driven, and cover aspects like team form, head-to-head record (if known), player availability, and tactical considerations.
+9.  A summary of the head-to-head record.
+10. A summary of the last 5 matches for each team.
+The reasoning should be objective, data-driven, and cover all aspects provided.
 Do not use markdown in your reasoning. Use newline characters for paragraph breaks.
 Ensure the total possession is exactly 100%.`;
         
         const prompt = `
 Please predict the outcome of the following football match:
 - Competition: ${match.competition.name}
-- Match: ${homeTeam} vs ${awayTeam}
+- Match: ${match.homeTeam.name} vs ${match.awayTeam.name}
 - Date: ${match.utcDate}
 
-Here is the latest information available for each team:
+Head-to-Head Summary:
+- Total Matches: ${h2hSummary.numberOfMatches}
+- ${match.homeTeam.name} Wins: ${h2hSummary.homeWins}
+- ${match.awayTeam.name} Wins: ${h2hSummary.awayWins}
+- Draws: ${h2hSummary.draws}
 
-${formatNews(homeTeam, homeNews)}
+Recent Form (Last 5 Matches):
+- ${match.homeTeam.name}: ${homeForm.map(f => f.result).join(', ') || 'No data'}
+- ${match.awayTeam.name}: ${awayForm.map(f => f.result).join(', ') || 'No data'}
 
-${formatNews(awayTeam, awayNews)}
+Here is the latest news available for each team:
+${formatNews(match.homeTeam.name, homeNews)}
+${formatNews(match.awayTeam.name, awayNews)}
 
 Based on all this information, provide your detailed prediction.
 `;
@@ -86,70 +141,70 @@ Based on all this information, provide your detailed prediction.
         const responseSchema = {
             type: Type.OBJECT,
             properties: {
-                predictedWinner: { 
-                    type: Type.STRING,
-                    description: "The predicted winning team. Can be 'HOME_TEAM', 'AWAY_TEAM', or 'DRAW'.",
-                },
-                reasoning: { 
-                    type: Type.STRING, 
-                    description: "A detailed, data-driven analysis explaining the prediction. Should cover team form, key players, injuries, and tactical analysis. Use newlines for paragraphs."
-                },
-                confidence: { 
-                    type: Type.NUMBER, 
-                    description: "A score from 0 to 100 representing the confidence in the prediction."
-                },
-                homeScore: { 
-                    type: Type.INTEGER, 
-                    description: "The predicted number of goals for the home team."
-                },
-                awayScore: { 
-                    type: Type.INTEGER, 
-                    description: "The predicted number of goals for the away team."
-                },
+                predictedWinner: { type: Type.STRING },
+                reasoning: { type: Type.STRING },
+                confidence: { type: Type.NUMBER },
+                homeScore: { type: Type.INTEGER },
+                awayScore: { type: Type.INTEGER },
                 keyPlayers: {
                     type: Type.OBJECT,
                     properties: {
-                        home: { 
-                            type: Type.ARRAY,
-                            items: { type: Type.STRING },
-                            description: "A list of 2-3 key players for the home team who could influence the match."
-                        },
-                        away: { 
-                            type: Type.ARRAY,
-                            items: { type: Type.STRING },
-                            description: "A list of 2-3 key players for the away team who could influence the match."
-                        }
+                        home: { type: Type.ARRAY, items: { type: Type.STRING } },
+                        away: { type: Type.ARRAY, items: { type: Type.STRING } }
                     },
                     required: ["home", "away"]
                 },
-                bothTeamsToScore: {
-                    type: Type.BOOLEAN,
-                    description: "Whether both teams are predicted to score. true or false."
-                },
-                overUnderGoals: {
-                    type: Type.STRING,
-                    description: "Prediction for total goals being over or under 2.5. Can be 'OVER' or 'UNDER'."
-                },
+                bothTeamsToScore: { type: Type.BOOLEAN },
+                overUnderGoals: { type: Type.STRING },
                 predictedPossession: {
                     type: Type.OBJECT,
                     properties: {
-                        home: {
-                            type: Type.INTEGER,
-                            description: "Predicted possession percentage for the home team."
-                        },
-                        away: {
-                            type: Type.INTEGER,
-                            description: "Predicted possession percentage for the away team."
-                        }
+                        home: { type: Type.INTEGER },
+                        away: { type: Type.INTEGER }
+                    },
+                    required: ["home", "away"]
+                },
+                h2hSummary: {
+                    type: Type.OBJECT,
+                    properties: {
+                        numberOfMatches: { type: Type.INTEGER },
+                        homeWins: { type: Type.INTEGER },
+                        awayWins: { type: Type.INTEGER },
+                        draws: { type: Type.INTEGER }
+                    },
+                    required: ["numberOfMatches", "homeWins", "awayWins", "draws"]
+                },
+                form: {
+                    type: Type.OBJECT,
+                    properties: {
+                        home: { type: Type.ARRAY, items: { 
+                            type: Type.OBJECT,
+                            properties: {
+                                opponent: { type: Type.STRING },
+                                result: { type: Type.STRING },
+                                score: { type: Type.STRING },
+                                location: { type: Type.STRING }
+                            },
+                             required: ["opponent", "result", "score", "location"]
+                        }},
+                        away: { type: Type.ARRAY, items: { 
+                             type: Type.OBJECT,
+                            properties: {
+                                opponent: { type: Type.STRING },
+                                result: { type: Type.STRING },
+                                score: { type: Type.STRING },
+                                location: { type: Type.STRING }
+                            },
+                            required: ["opponent", "result", "score", "location"]
+                        }}
                     },
                     required: ["home", "away"]
                 }
             },
-            required: ["predictedWinner", "reasoning", "confidence", "homeScore", "awayScore", "keyPlayers", "bothTeamsToScore", "overUnderGoals", "predictedPossession"]
+            required: ["predictedWinner", "reasoning", "confidence", "homeScore", "awayScore", "keyPlayers", "bothTeamsToScore", "overUnderGoals", "predictedPossession", "h2hSummary", "form"]
         };
 
         const response = await ai.models.generateContent({
-            // FIX: Use gemini-2.5-flash model as per guidelines
             model: "gemini-2.5-flash",
             contents: prompt,
             config: {
@@ -160,21 +215,22 @@ Based on all this information, provide your detailed prediction.
             }
         });
         
-        // FIX: Access the text property directly for the response as per guidelines
         const jsonText = response.text;
         
         if (!jsonText) {
              throw new Error("The AI model returned an empty response.");
         }
 
-        const prediction: GeminiPrediction = JSON.parse(jsonText);
+        let prediction: GeminiPrediction = JSON.parse(jsonText);
+        
+        // Gemini might not have the form data, so we populate it from our earlier fetch
+        prediction.form = { home: homeForm, away: awayForm };
+        prediction.h2hSummary = h2hSummary;
+
 
         return new Response(JSON.stringify(prediction), {
             status: 200,
-            headers: { 
-                'Content-Type': 'application/json',
-                'Access-Control-Allow-Origin': '*',
-            },
+            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
         });
 
     } catch (error) {
@@ -182,10 +238,7 @@ Based on all this information, provide your detailed prediction.
         const message = error instanceof Error ? error.message : "An unknown error occurred on the server.";
         return new Response(JSON.stringify({ error: "Failed to generate AI prediction.", details: message }), {
             status: 500,
-            headers: { 
-                'Content-Type': 'application/json',
-                'Access-Control-Allow-Origin': '*',
-             },
+            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
         });
     }
 }

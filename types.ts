@@ -52,6 +52,20 @@ export interface TavilyResponse {
     results: TavilySearchResult[];
 }
 
+export interface MatchResult {
+    opponent: string;
+    result: 'W' | 'D' | 'L';
+    score: string;
+    location: 'H' | 'A';
+}
+
+export interface H2HSummary {
+    numberOfMatches: number;
+    homeWins: number;
+    awayWins: number;
+    draws: number;
+}
+
 export interface GeminiPrediction {
     predictedWinner: 'HOME_TEAM' | 'AWAY_TEAM' | 'DRAW';
     reasoning: string;
@@ -67,5 +81,10 @@ export interface GeminiPrediction {
     predictedPossession: {
         home: number;
         away: number;
+    };
+    h2hSummary: H2HSummary;
+    form: {
+        home: MatchResult[];
+        away: MatchResult[];
     };
 }
