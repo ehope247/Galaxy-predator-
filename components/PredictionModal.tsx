@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import type { Match, TavilySearchResult, GeminiPrediction, MatchResult } from '../types';
 import { getTeamNews } from '../services/tavilyService';
 import { generatePrediction } from '../services/geminiService';
@@ -73,36 +73,43 @@ export const PredictionModal: React.FC<PredictionModalProps> = ({ match, onClose
     const [homeNews, setHomeNews] = useState<TavilySearchResult[]>([]);
     const [awayNews, setAwayNews] = useState<TavilySearchResult[]>([]);
 
+    const fetchAllData = useCallback(async () => {
+        setIsLoading(true);
+        setError(null);
+        setPrediction(null);
 
-    useEffect(() => {
-        const fetchAllData = async () => {
-            setIsLoading(true);
-            setError(null);
+        const timeoutPromise = new Promise((_, reject) =>
+            setTimeout(() => reject(new Error("Prediction timed out. The AI analyst might be busy or there's a network issue. Please try again.")), 30000)
+        );
 
-            try {
-                setLoadingMessage(`Gathering latest news for 2025/26 season...`);
-                const [homeNewsData, awayNewsData] = await Promise.all([
-                    getTeamNews(match.homeTeam.name),
-                    getTeamNews(match.awayTeam.name)
-                ]);
-                setHomeNews(homeNewsData);
-                setAwayNews(awayNewsData);
+        const dataFetchPromise = async () => {
+            setLoadingMessage(`Gathering latest news for ${match.homeTeam.name} and ${match.awayTeam.name}...`);
+            const [homeNewsData, awayNewsData] = await Promise.all([
+                getTeamNews(match.homeTeam.name),
+                getTeamNews(match.awayTeam.name)
+            ]);
+            setHomeNews(homeNewsData);
+            setAwayNews(awayNewsData);
 
-                setLoadingMessage("Fetching stats & consulting with the AI...");
-                const predictionData = await generatePrediction(match, homeNewsData, awayNewsData);
-                setPrediction(predictionData);
-
-            } catch (err) {
-                const message = err instanceof Error ? err.message : "An unknown error occurred.";
-                setError(`Failed to generate prediction. ${message}`);
-                console.error(err);
-            } finally {
-                setIsLoading(false);
-            }
+            setLoadingMessage("Fetching stats & consulting with the AI... (This can take a moment)");
+            const predictionData = await generatePrediction(match, homeNewsData, awayNewsData);
+            setPrediction(predictionData);
         };
 
-        fetchAllData();
+        try {
+            await Promise.race([dataFetchPromise(), timeoutPromise]);
+        } catch (err) {
+            const message = err instanceof Error ? err.message : "An unknown error occurred.";
+            setError(`Failed to generate prediction. ${message}`);
+            console.error(err);
+        } finally {
+            setIsLoading(false);
+        }
     }, [match]);
+
+    useEffect(() => {
+        fetchAllData();
+    }, [fetchAllData]);
 
     const getWinnerStyling = (team: 'HOME_TEAM' | 'AWAY_TEAM' | 'DRAW' | undefined) => {
         if (!prediction || !team) return '';
@@ -150,7 +157,13 @@ export const PredictionModal: React.FC<PredictionModalProps> = ({ match, onClose
                 {error && (
                     <div className="text-center py-16 text-red-400 bg-red-900/20 p-6 rounded-lg">
                         <p className="font-bold text-xl">Prediction Failed</p>
-                        <p className="mt-2">{error}</p>
+                        <p className="mt-2 mb-4">{error}</p>
+                        <button
+                            onClick={fetchAllData}
+                            className="bg-brand-primary text-black font-bold py-2 px-6 rounded-lg hover:bg-opacity-80 transition-colors shadow-md shadow-brand-primary/20"
+                        >
+                            Try Again
+                        </button>
                     </div>
                 )}
 
