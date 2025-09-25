@@ -41,9 +41,7 @@ export default async function handler(req: Request) {
             });
         }
         
-        const currentYear = new Date().getFullYear();
-        const nextYear = currentYear + 1;
-        const query = `"${teamName}" football news for ${currentYear}-${nextYear} season, including player transfers, injury updates, squad analysis, and upcoming match previews.`;
+        const query = `"${teamName}" football news for 2025-2026 season, including player transfers, injury updates, squad analysis, and upcoming match previews.`;
         
         const tavilyPayload = {
             api_key: apiKey,
