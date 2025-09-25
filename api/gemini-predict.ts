@@ -141,9 +141,9 @@ Based on all this information, provide your detailed prediction.
         const responseSchema = {
             type: Type.OBJECT,
             properties: {
-                predictedWinner: { type: Type.STRING },
-                reasoning: { type: Type.STRING },
-                confidence: { type: Type.NUMBER },
+                predictedWinner: { type: Type.STRING, description: "The predicted winner. Must be one of: 'HOME_TEAM', 'AWAY_TEAM', 'DRAW'." },
+                reasoning: { type: Type.STRING, description: "Detailed, data-driven reasoning for the prediction. Use newline characters for paragraphs, not markdown." },
+                confidence: { type: Type.NUMBER, description: "Confidence score from 0 to 100." },
                 homeScore: { type: Type.INTEGER },
                 awayScore: { type: Type.INTEGER },
                 keyPlayers: {
@@ -155,7 +155,7 @@ Based on all this information, provide your detailed prediction.
                     required: ["home", "away"]
                 },
                 bothTeamsToScore: { type: Type.BOOLEAN },
-                overUnderGoals: { type: Type.STRING },
+                overUnderGoals: { type: Type.STRING, description: "Prediction for over/under 2.5 goals. Must be 'OVER' or 'UNDER'." },
                 predictedPossession: {
                     type: Type.OBJECT,
                     properties: {
@@ -181,9 +181,9 @@ Based on all this information, provide your detailed prediction.
                             type: Type.OBJECT,
                             properties: {
                                 opponent: { type: Type.STRING },
-                                result: { type: Type.STRING },
+                                result: { type: Type.STRING, description: "Match result. Must be one of: 'W', 'D', 'L'." },
                                 score: { type: Type.STRING },
-                                location: { type: Type.STRING }
+                                location: { type: Type.STRING, description: "Match location. Must be 'H' (Home) or 'A' (Away)." }
                             },
                              required: ["opponent", "result", "score", "location"]
                         }},
@@ -191,9 +191,9 @@ Based on all this information, provide your detailed prediction.
                              type: Type.OBJECT,
                             properties: {
                                 opponent: { type: Type.STRING },
-                                result: { type: Type.STRING },
+                                result: { type: Type.STRING, description: "Match result. Must be one of: 'W', 'D', 'L'." },
                                 score: { type: Type.STRING },
-                                location: { type: Type.STRING }
+                                location: { type: Type.STRING, description: "Match location. Must be 'H' (Home) or 'A' (Away)." }
                             },
                             required: ["opponent", "result", "score", "location"]
                         }}
