@@ -41,7 +41,7 @@ export default async function handler(req: Request) {
             });
         }
         
-        const query = `"${teamName}" football news for 2025-2026 season, including player transfers, injury updates, squad analysis, and upcoming match previews.`;
+        const query = `Recent news for "${teamName}" regarding the 2025-2026 football season, including player injuries, team form, and pre-match analysis.`;
         
         const tavilyPayload = {
             api_key: apiKey,

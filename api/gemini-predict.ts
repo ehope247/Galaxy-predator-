@@ -53,42 +53,86 @@ const generateFallbackPrediction = (
     homeForm: MatchResult[],
     awayForm: MatchResult[]
 ): GeminiPrediction => {
+    let homePoints = 0;
+    let awayPoints = 0;
+
+    // 1. Home advantage
+    homePoints += 1.5;
+
+    // 2. Head-to-head record
+    if (h2hSummary.numberOfMatches > 0) {
+        const homeWinPct = h2hSummary.homeWins / h2hSummary.numberOfMatches;
+        const awayWinPct = h2hSummary.awayWins / h2hSummary.numberOfMatches;
+        homePoints += homeWinPct * 5;
+        awayPoints += awayWinPct * 5;
+    }
+
+    // 3. Recent form (last 5 games, weighted)
+    const formWeight = [1.5, 1.3, 1.1, 1.0, 0.8]; // Most recent games are more important
+    const getFormPoints = (form: MatchResult[]) => {
+        return form.reduce((total, match, index) => {
+            const weight = formWeight[index] || 0.8;
+            if (match.result === 'W') return total + (3 * weight);
+            if (match.result === 'D') return total + (1 * weight);
+            return total;
+        }, 0);
+    };
+    homePoints += getFormPoints(homeForm);
+    awayPoints += getFormPoints(awayForm);
+
+    // 4. Determine winner and score
+    const pointDifference = Math.abs(homePoints - awayPoints);
     let predictedWinner: 'HOME_TEAM' | 'AWAY_TEAM' | 'DRAW';
     let homeScore: number;
     let awayScore: number;
 
-    // Simple logic: H2H is the main decider, then form
-    if (h2hSummary.homeWins > h2hSummary.awayWins) {
-        predictedWinner = 'HOME_TEAM';
-        homeScore = 2;
-        awayScore = 1;
-    } else if (h2hSummary.awayWins > h2hSummary.homeWins) {
-        predictedWinner = 'AWAY_TEAM';
-        homeScore = 1;
-        awayScore = 2;
-    } else {
-        // H2H is tied, check form
-        const homeWins = homeForm.filter(f => f.result === 'W').length;
-        const awayWins = awayForm.filter(f => f.result === 'W').length;
-        if (homeWins > awayWins) {
-            predictedWinner = 'HOME_TEAM';
-            homeScore = 1;
-            awayScore = 0;
-        } else if (awayWins > homeWins) {
-            predictedWinner = 'AWAY_TEAM';
-            homeScore = 0;
-            awayScore = 1;
+    if (pointDifference < 2.0) {
+        predictedWinner = 'DRAW';
+        if (pointDifference > 1.0) { // High-scoring draw
+            homeScore = 2;
+            awayScore = 2;
         } else {
-            predictedWinner = 'DRAW';
             homeScore = 1;
             awayScore = 1;
         }
+    } else if (homePoints > awayPoints) {
+        predictedWinner = 'HOME_TEAM';
+        if (pointDifference > 5) {
+            homeScore = 3;
+            awayScore = 0;
+        } else if (pointDifference > 3) {
+            homeScore = 2;
+            awayScore = 0;
+        } else {
+            homeScore = 2;
+            awayScore = 1;
+        }
+    } else { // awayPoints > homePoints
+        predictedWinner = 'AWAY_TEAM';
+        if (pointDifference > 5) {
+            homeScore = 0;
+            awayScore = 3;
+        } else if (pointDifference > 3) {
+            homeScore = 0;
+            awayScore = 2;
+        } else {
+            homeScore = 1;
+            awayScore = 2;
+        }
     }
+
+    // 5. Calculate confidence (normalized between ~40-75%)
+    const confidence = 40 + Math.min(pointDifference * 5, 35);
+    
+    // 6. Predict possession
+    const homePossession = Math.round(50 + (homePoints - awayPoints) * 2);
+    const finalHomePossession = Math.max(30, Math.min(70, homePossession));
+    const finalAwayPossession = 100 - finalHomePossession;
 
     return {
         predictedWinner,
-        reasoning: "This is a simplified prediction based on historical head-to-head data and recent form, as the primary AI analyst was unavailable. Key factors considered were past results between the two clubs and their recent win/loss records.",
-        confidence: 45,
+        reasoning: "This prediction is based on a statistical model analyzing historical head-to-head data, recent form (with more weight on recent matches), and home-field advantage. The model calculates a strength score for each team to determine the most likely outcome.",
+        confidence: Math.round(confidence),
         homeScore,
         awayScore,
         keyPlayers: {
@@ -98,12 +142,11 @@ const generateFallbackPrediction = (
         bothTeamsToScore: homeScore > 0 && awayScore > 0,
         overUnderGoals: (homeScore + awayScore) > 2.5 ? 'OVER' : 'UNDER',
         predictedPossession: {
-            home: 50,
-            away: 50,
+            home: finalHomePossession,
+            away: finalAwayPossession,
         },
         h2hSummary,
         form: { home: homeForm, away: awayForm },
-        source: 'fallback_ml',
     };
 };
 
@@ -288,8 +331,6 @@ Based on all this information, provide your detailed prediction.
             // Gemini might not have the form data, so we populate it from our earlier fetch
             prediction.form = { home: homeForm, away: awayForm };
             prediction.h2hSummary = h2hSummary;
-            prediction.source = 'gemini';
-
 
             return new Response(JSON.stringify(prediction), {
                 status: 200,

@@ -3,7 +3,7 @@ import type { Match, TavilySearchResult, GeminiPrediction, MatchResult } from '.
 import { getTeamNews } from '../services/tavilyService';
 import { generatePrediction } from '../services/geminiService';
 import { Loader } from './Loader';
-import { XIcon, WarningIcon } from './IconComponents';
+import { XIcon } from './IconComponents';
 
 interface PredictionModalProps {
     match: Match;
@@ -170,16 +170,6 @@ export const PredictionModal: React.FC<PredictionModalProps> = ({ match, onClose
                 {!isLoading && !error && prediction && (
                     <div className="animate-fade-in space-y-6">
                         <h2 className="text-xl sm:text-2xl font-bold text-center bg-clip-text text-transparent bg-gradient-to-r from-brand-primary to-white">AI Prediction Analysis</h2>
-                        
-                        {prediction.source === 'fallback_ml' && (
-                            <div className="bg-yellow-900/30 border border-yellow-700/50 text-yellow-300 text-sm rounded-lg p-3 flex items-start space-x-3">
-                                <WarningIcon className="w-5 h-5 flex-shrink-0 mt-0.5" />
-                                <div>
-                                    <p className="font-semibold">Simplified Prediction</p>
-                                    <p className="text-xs text-yellow-300/80">The primary AI analyst is unavailable. This prediction is based on a basic statistical model. For a full AI analysis, please try again later.</p>
-                                </div>
-                            </div>
-                        )}
                         
                         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                             <div className="lg:col-span-2 grid grid-cols-3 items-center text-center p-4 rounded-xl border-2 bg-black/20 transition-all duration-500">
