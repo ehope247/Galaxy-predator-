@@ -87,4 +87,5 @@ export interface GeminiPrediction {
         home: MatchResult[];
         away: MatchResult[];
     };
+    source?: 'gemini' | 'fallback_ml';
 }

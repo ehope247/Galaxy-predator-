@@ -46,6 +46,67 @@ const getTeamForm = (matches: any[], teamId: number): MatchResult[] => {
     });
 };
 
+// Fallback prediction generator
+const generateFallbackPrediction = (
+    match: Match,
+    h2hSummary: H2HSummary,
+    homeForm: MatchResult[],
+    awayForm: MatchResult[]
+): GeminiPrediction => {
+    let predictedWinner: 'HOME_TEAM' | 'AWAY_TEAM' | 'DRAW';
+    let homeScore: number;
+    let awayScore: number;
+
+    // Simple logic: H2H is the main decider, then form
+    if (h2hSummary.homeWins > h2hSummary.awayWins) {
+        predictedWinner = 'HOME_TEAM';
+        homeScore = 2;
+        awayScore = 1;
+    } else if (h2hSummary.awayWins > h2hSummary.homeWins) {
+        predictedWinner = 'AWAY_TEAM';
+        homeScore = 1;
+        awayScore = 2;
+    } else {
+        // H2H is tied, check form
+        const homeWins = homeForm.filter(f => f.result === 'W').length;
+        const awayWins = awayForm.filter(f => f.result === 'W').length;
+        if (homeWins > awayWins) {
+            predictedWinner = 'HOME_TEAM';
+            homeScore = 1;
+            awayScore = 0;
+        } else if (awayWins > homeWins) {
+            predictedWinner = 'AWAY_TEAM';
+            homeScore = 0;
+            awayScore = 1;
+        } else {
+            predictedWinner = 'DRAW';
+            homeScore = 1;
+            awayScore = 1;
+        }
+    }
+
+    return {
+        predictedWinner,
+        reasoning: "This is a simplified prediction based on historical head-to-head data and recent form, as the primary AI analyst was unavailable. Key factors considered were past results between the two clubs and their recent win/loss records.",
+        confidence: 45,
+        homeScore,
+        awayScore,
+        keyPlayers: {
+            home: ["Team's top scorer", "Key midfielder"],
+            away: ["Primary attacking threat", "Lead defender"],
+        },
+        bothTeamsToScore: homeScore > 0 && awayScore > 0,
+        overUnderGoals: (homeScore + awayScore) > 2.5 ? 'OVER' : 'UNDER',
+        predictedPossession: {
+            home: 50,
+            away: 50,
+        },
+        h2hSummary,
+        form: { home: homeForm, away: awayForm },
+        source: 'fallback_ml',
+    };
+};
+
 export default async function handler(req: Request) {
     if (req.method === 'OPTIONS') {
         return new Response(null, {
@@ -95,9 +156,10 @@ export default async function handler(req: Request) {
         const homeForm = getTeamForm(homeFormData?.matches, match.homeTeam.id);
         const awayForm = getTeamForm(awayFormData?.matches, match.awayTeam.id);
         
-        const ai = new GoogleGenAI({ apiKey: geminiApiKey });
-        
-        const systemInstruction = `You are a world-class football analyst. Your task is to predict the outcome of an upcoming football match.
+        try {
+            const ai = new GoogleGenAI({ apiKey: geminiApiKey });
+            
+            const systemInstruction = `You are a world-class football analyst. Your task is to predict the outcome of an upcoming football match.
 Analyze the provided data which includes match details, head-to-head stats, recent team form, and the latest news for both teams.
 Based on your analysis, provide a detailed prediction in JSON format.
 Your prediction must include:
@@ -114,8 +176,8 @@ Your prediction must include:
 The reasoning should be objective, data-driven, and cover all aspects provided.
 Do not use markdown in your reasoning. Use newline characters for paragraph breaks.
 Ensure the total possession is exactly 100%.`;
-        
-        const prompt = `
+            
+            const prompt = `
 Please predict the outcome of the following football match:
 - Competition: ${match.competition.name}
 - Match: ${match.homeTeam.name} vs ${match.awayTeam.name}
@@ -138,100 +200,109 @@ ${formatNews(match.awayTeam.name, awayNews)}
 Based on all this information, provide your detailed prediction.
 `;
 
-        const responseSchema = {
-            type: Type.OBJECT,
-            properties: {
-                predictedWinner: { type: Type.STRING, description: "The predicted winner. Must be one of: 'HOME_TEAM', 'AWAY_TEAM', 'DRAW'." },
-                reasoning: { type: Type.STRING, description: "Detailed, data-driven reasoning for the prediction. Use newline characters for paragraphs, not markdown." },
-                confidence: { type: Type.NUMBER, description: "Confidence score from 0 to 100." },
-                homeScore: { type: Type.INTEGER },
-                awayScore: { type: Type.INTEGER },
-                keyPlayers: {
-                    type: Type.OBJECT,
-                    properties: {
-                        home: { type: Type.ARRAY, items: { type: Type.STRING } },
-                        away: { type: Type.ARRAY, items: { type: Type.STRING } }
+            const responseSchema = {
+                type: Type.OBJECT,
+                properties: {
+                    predictedWinner: { type: Type.STRING, description: "The predicted winner. Must be one of: 'HOME_TEAM', 'AWAY_TEAM', 'DRAW'." },
+                    reasoning: { type: Type.STRING, description: "Detailed, data-driven reasoning for the prediction. Use newline characters for paragraphs, not markdown." },
+                    confidence: { type: Type.NUMBER, description: "Confidence score from 0 to 100." },
+                    homeScore: { type: Type.INTEGER },
+                    awayScore: { type: Type.INTEGER },
+                    keyPlayers: {
+                        type: Type.OBJECT,
+                        properties: {
+                            home: { type: Type.ARRAY, items: { type: Type.STRING } },
+                            away: { type: Type.ARRAY, items: { type: Type.STRING } }
+                        },
+                        required: ["home", "away"]
                     },
-                    required: ["home", "away"]
+                    bothTeamsToScore: { type: Type.BOOLEAN },
+                    overUnderGoals: { type: Type.STRING, description: "Prediction for over/under 2.5 goals. Must be 'OVER' or 'UNDER'." },
+                    predictedPossession: {
+                        type: Type.OBJECT,
+                        properties: {
+                            home: { type: Type.INTEGER },
+                            away: { type: Type.INTEGER }
+                        },
+                        required: ["home", "away"]
+                    },
+                    h2hSummary: {
+                        type: Type.OBJECT,
+                        properties: {
+                            numberOfMatches: { type: Type.INTEGER },
+                            homeWins: { type: Type.INTEGER },
+                            awayWins: { type: Type.INTEGER },
+                            draws: { type: Type.INTEGER }
+                        },
+                        required: ["numberOfMatches", "homeWins", "awayWins", "draws"]
+                    },
+                    form: {
+                        type: Type.OBJECT,
+                        properties: {
+                            home: { type: Type.ARRAY, items: { 
+                                type: Type.OBJECT,
+                                properties: {
+                                    opponent: { type: Type.STRING },
+                                    result: { type: Type.STRING, description: "Match result. Must be one of: 'W', 'D', 'L'." },
+                                    score: { type: Type.STRING },
+                                    location: { type: Type.STRING, description: "Match location. Must be 'H' (Home) or 'A' (Away)." }
+                                },
+                                 required: ["opponent", "result", "score", "location"]
+                            }},
+                            away: { type: Type.ARRAY, items: { 
+                                 type: Type.OBJECT,
+                                properties: {
+                                    opponent: { type: Type.STRING },
+                                    result: { type: Type.STRING, description: "Match result. Must be one of: 'W', 'D', 'L'." },
+                                    score: { type: Type.STRING },
+                                    location: { type: Type.STRING, description: "Match location. Must be 'H' (Home) or 'A' (Away)." }
+                                },
+                                required: ["opponent", "result", "score", "location"]
+                            }}
+                        },
+                        required: ["home", "away"]
+                    }
                 },
-                bothTeamsToScore: { type: Type.BOOLEAN },
-                overUnderGoals: { type: Type.STRING, description: "Prediction for over/under 2.5 goals. Must be 'OVER' or 'UNDER'." },
-                predictedPossession: {
-                    type: Type.OBJECT,
-                    properties: {
-                        home: { type: Type.INTEGER },
-                        away: { type: Type.INTEGER }
-                    },
-                    required: ["home", "away"]
-                },
-                h2hSummary: {
-                    type: Type.OBJECT,
-                    properties: {
-                        numberOfMatches: { type: Type.INTEGER },
-                        homeWins: { type: Type.INTEGER },
-                        awayWins: { type: Type.INTEGER },
-                        draws: { type: Type.INTEGER }
-                    },
-                    required: ["numberOfMatches", "homeWins", "awayWins", "draws"]
-                },
-                form: {
-                    type: Type.OBJECT,
-                    properties: {
-                        home: { type: Type.ARRAY, items: { 
-                            type: Type.OBJECT,
-                            properties: {
-                                opponent: { type: Type.STRING },
-                                result: { type: Type.STRING, description: "Match result. Must be one of: 'W', 'D', 'L'." },
-                                score: { type: Type.STRING },
-                                location: { type: Type.STRING, description: "Match location. Must be 'H' (Home) or 'A' (Away)." }
-                            },
-                             required: ["opponent", "result", "score", "location"]
-                        }},
-                        away: { type: Type.ARRAY, items: { 
-                             type: Type.OBJECT,
-                            properties: {
-                                opponent: { type: Type.STRING },
-                                result: { type: Type.STRING, description: "Match result. Must be one of: 'W', 'D', 'L'." },
-                                score: { type: Type.STRING },
-                                location: { type: Type.STRING, description: "Match location. Must be 'H' (Home) or 'A' (Away)." }
-                            },
-                            required: ["opponent", "result", "score", "location"]
-                        }}
-                    },
-                    required: ["home", "away"]
+                required: ["predictedWinner", "reasoning", "confidence", "homeScore", "awayScore", "keyPlayers", "bothTeamsToScore", "overUnderGoals", "predictedPossession", "h2hSummary", "form"]
+            };
+
+            const response = await ai.models.generateContent({
+                model: "gemini-2.5-flash",
+                contents: prompt,
+                config: {
+                    systemInstruction: systemInstruction,
+                    responseMimeType: "application/json",
+                    responseSchema: responseSchema,
+                    temperature: 0.5,
                 }
-            },
-            required: ["predictedWinner", "reasoning", "confidence", "homeScore", "awayScore", "keyPlayers", "bothTeamsToScore", "overUnderGoals", "predictedPossession", "h2hSummary", "form"]
-        };
-
-        const response = await ai.models.generateContent({
-            model: "gemini-2.5-flash",
-            contents: prompt,
-            config: {
-                systemInstruction: systemInstruction,
-                responseMimeType: "application/json",
-                responseSchema: responseSchema,
-                temperature: 0.5,
+            });
+            
+            const jsonText = response.text;
+            
+            if (!jsonText) {
+                 throw new Error("The AI model returned an empty response.");
             }
-        });
-        
-        const jsonText = response.text;
-        
-        if (!jsonText) {
-             throw new Error("The AI model returned an empty response.");
+
+            let prediction: GeminiPrediction = JSON.parse(jsonText);
+            
+            // Gemini might not have the form data, so we populate it from our earlier fetch
+            prediction.form = { home: homeForm, away: awayForm };
+            prediction.h2hSummary = h2hSummary;
+            prediction.source = 'gemini';
+
+
+            return new Response(JSON.stringify(prediction), {
+                status: 200,
+                headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+            });
+        } catch (geminiError) {
+            console.warn("Gemini prediction failed, generating fallback.", geminiError);
+            const fallbackPrediction = generateFallbackPrediction(match, h2hSummary, homeForm, awayForm);
+            return new Response(JSON.stringify(fallbackPrediction), {
+                status: 200, // Still a success, just with fallback data
+                headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+            });
         }
-
-        let prediction: GeminiPrediction = JSON.parse(jsonText);
-        
-        // Gemini might not have the form data, so we populate it from our earlier fetch
-        prediction.form = { home: homeForm, away: awayForm };
-        prediction.h2hSummary = h2hSummary;
-
-
-        return new Response(JSON.stringify(prediction), {
-            status: 200,
-            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
-        });
 
     } catch (error) {
         console.error("Error in Gemini predict handler:", error);
